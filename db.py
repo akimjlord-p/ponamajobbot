@@ -33,7 +33,13 @@ def add_report_to_db(report: ReportBase) -> None:
         session.commit()
 
 
-def get_report_by_username(username: str) -> list[ReportBase]:
+def get_all_usernames() -> list[str] | None:
+    with Session() as session:
+        statement = select(WorkerBase.username)
+        return list(session.scalars(statement).all())
+
+
+def get_reports_by_username(username: str) -> list[ReportBase]:
     with Session() as session:
         statement = select(WorkerBase).where(WorkerBase.username == username).options(selectinload(WorkerBase.reports))
         worker = session.scalars(statement).first()
