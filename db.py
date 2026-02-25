@@ -1,7 +1,8 @@
-from sqlalchemy.orm import sessionmaker
-from models import Base, UserBase, ReportBase # noqa: F401
+from sqlalchemy.orm import sessionmaker, selectinload
+from models import Base, WorkerBase, ReportBase  # noqa: F401
 from sqlalchemy import create_engine, select, delete
 from models import Base
+
 
 DB_URL = 'sqlite:///db/database.db'
 engine = create_engine(DB_URL, echo=True)
@@ -13,16 +14,17 @@ def create_db_and_tables() -> None:
 Session = sessionmaker(bind=engine)
 
 
-def add_user_to_db(user: UserBase) -> None:
+def add_worker_to_db(user: WorkerBase) -> None:
     with Session() as session:
         session.add(user)
         session.commit()
 
 
-def get_user_by_username(username: str) -> UserBase:
+def get_worker_id_by_username(username: str) -> int | None:
     with Session() as session:
-        statement = select(UserBase).where(UserBase.username == username)
-        return session.scalars(statement).one()
+        statement = select(WorkerBase).where(WorkerBase.username == username)
+        worker = session.scalars(statement).first()
+        return worker.id if worker else None
 
 
 def add_report_to_db(report: ReportBase) -> None:
@@ -31,9 +33,17 @@ def add_report_to_db(report: ReportBase) -> None:
         session.commit()
 
 
-def get_report_by_username(user_id: int) -> ReportBase:
+def get_report_by_username(username: str) -> list[ReportBase]:
     with Session() as session:
-        statement = select(ReportBase).where(ReportBase.user_id == user_id)
-        return session.scalars(statement).one()
+        statement = select(WorkerBase).where(WorkerBase.username == username).options(selectinload(WorkerBase.reports))
+        worker = session.scalars(statement).first()
+        return worker.reports if worker else []
+
+
+def clear_all_reports() -> None:
+    with Session() as session:
+        statement = delete(ReportBase)
+        session.execute(statement)
+        session.commit()
 
 

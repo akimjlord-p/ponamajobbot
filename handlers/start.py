@@ -1,4 +1,3 @@
-import logging
 from aiogram import Router, types
 from aiogram.filters import CommandStart
 from keyboards import get_kb
