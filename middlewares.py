@@ -2,7 +2,7 @@ from typing import Any, Awaitable, Callable, Dict
 from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject, Message
 import logging
-from db import get_worker_by_username
+from db import get_worker_id_by_username
 from config import ADMINS
 class AccessMiddleware(BaseMiddleware):
     async def __call__(
@@ -19,8 +19,8 @@ class AccessMiddleware(BaseMiddleware):
                 await event.answer(text="Привет, я тебя не узнаю (вероятно скрыт @username ⚠️)")
                 return None
 
-            worker = get_worker_by_username(username)
-            if worker:
+            worker = get_worker_id_by_username(username)
+            if worker or (str(event.from_user.id) in ADMINS):
                 logging.info(f"Worker {username} found successfully")
                 return await handler(event, data)
             else:

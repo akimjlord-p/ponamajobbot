@@ -18,7 +18,7 @@ class ReportBase(Base):
     __tablename__ = "reports"
     id: Mapped[int] = mapped_column(primary_key=True)
     message: Mapped[str] = mapped_column(String())
-    user_id: Mapped[str] = mapped_column(ForeignKey("workers.id"))
+    worker_id: Mapped[str] = mapped_column(ForeignKey("workers.id"))
 
     worker: Mapped["WorkerBase"] = relationship(back_populates="reports")
 

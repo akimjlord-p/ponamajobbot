@@ -1,5 +1,7 @@
 import logging
 from bot import main
+import asyncio
+from db import create_db_and_tables
 
 logging.basicConfig(
     level=logging.INFO,
@@ -9,6 +11,6 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
+create_db_and_tables()
 
-
-main()
+asyncio.run(main())
