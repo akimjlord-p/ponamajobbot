@@ -1,8 +1,7 @@
 import logging
 from aiogram import Router, types
 from aiogram.filters import CommandStart
-from db import get_user_by_username
-
+from keyboards import get_kb
 
 router = Router()
 
@@ -10,6 +9,9 @@ router = Router()
 
 
 @router.message(CommandStart())
-async def start_command(message: types.Message):
+async def start_command(message: types.Message, is_admin: bool):
     username = message.from_user.username
-    await message.answer(text=f"Привет, {username}!\nКоманды: /report")
+    if not is_admin:
+        await message.answer(text=f"Привет, {username}!\nКоманды: /report", reply_markup=get_kb(is_admin))
+    else:
+        await message.answer(text=f"Привет, {username}!\nКоманды /worker", reply_markup=get_kb(is_admin))

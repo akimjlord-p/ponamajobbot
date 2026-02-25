@@ -4,7 +4,7 @@ from aiogram.types import Update
 from config import MAIN_ID, BOT_TOKEN
 from middlewares import AccessMiddleware
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-
+from keyboards import get_kb
 
 
 bot = Bot(token=BOT_TOKEN)
@@ -15,7 +15,7 @@ dp.message.outer_middleware(AccessMiddleware())
 
 async def send_weekly_report(bot: Bot) -> None:
     report_text = """репорт"""
-    await bot.send_message(chat_id=MAIN_ID, text=report_text)
+    await bot.send_message(chat_id=MAIN_ID, text=report_text, reply_markup=get_kb(is_admin=True))
     logging.info("Report sent")
 
 
