@@ -3,8 +3,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import ForeignKey, String
 
 
-
-
 class Base(DeclarativeBase):
     pass
 
