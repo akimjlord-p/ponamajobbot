@@ -6,7 +6,7 @@ from middlewares import AccessMiddleware, AdminMiddleware
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from keyboards import get_kb
 from handlers import admin, start, report
-from db import get_all_usernames, get_reports_by_username
+from db import get_all_usernames, get_reports_by_username, clear_all_reports
 
 
 bot = Bot(token=BOT_TOKEN)
@@ -28,18 +28,20 @@ async def send_weekly_report(bot: Bot) -> None:
         reports = get_reports_by_username(username)
         res_reports = []
         for report in reports:
-            res_reports.append(f"Дата: {report.date} \n" + str(report.message))
-        all_users.append(f"Работник {username}" + '\n'.join(res_reports))
+            res_reports.append(f"---Дата: {report.date} \n" + str(report.message))
+        all_users.append(f"Работник <b>{username}</b>" + "\n" + "\n".join(res_reports))
     report_text += "\n".join(all_users)
-    await bot.send_message(chat_id=MAIN_ID, text=report_text, reply_markup=get_kb(is_admin=True))
+    await bot.send_message(chat_id=MAIN_ID, text=report_text, reply_markup=get_kb(is_admin=True), parse_mode="HTML")
     logging.info("Report sent")
+    clear_all_reports()
+    logging.info("All reports cleared")
 
 
 
 async def main() -> None:
     scheduler = AsyncIOScheduler(timezone="Europe/Moscow")
 
-    scheduler.add_job(send_weekly_report, trigger="cron", day_of_week="wed", hour=21, minute=6, kwargs={"bot": bot})
+    scheduler.add_job(send_weekly_report, trigger="cron", day_of_week="sun", hour=9, minute=20, kwargs={"bot": bot})
 
     scheduler.start()
     await dp.start_polling(bot)
