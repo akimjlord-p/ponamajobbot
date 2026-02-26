@@ -11,10 +11,11 @@ class WorkerBase(Base):
     __tablename__ = "workers"
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column(unique=True)
-    telegram_id: Mapped[int] = mapped_column(unique=True)
+    telegram_id: Mapped[int | None] = mapped_column(unique=True, nullable=True)
 
     reports: Mapped[list["ReportBase"]] = relationship(back_populates="worker")
-    sessions: Mapped[list["WorkSession"]] = relationship(back_populates="worker")  # ДОБАВИЛ
+    sessions: Mapped[list["WorkSession"]] = relationship(back_populates="worker")
+    week_reports: Mapped[list["WeekReportBase"]] = relationship(back_populates="worker")# ДОБАВИЛ
 
 
 class WorkSession(Base):
@@ -36,10 +37,21 @@ class ReportBase(Base):
     __tablename__ = "reports"
     id: Mapped[int] = mapped_column(primary_key=True)
     message: Mapped[str] = mapped_column(String())
-    date: Mapped[str] = mapped_column(String())
+    date: Mapped[datetime] = mapped_column()
     worker_id: Mapped[int] = mapped_column(ForeignKey("workers.id"))
 
     worker: Mapped["WorkerBase"] = relationship(back_populates="reports")
     session: Mapped["WorkSession"] = relationship(back_populates="report", uselist=False)
+
+
+class WeekReportBase(Base):
+    __tablename__ = "week_reports"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    message: Mapped[str] = mapped_column(String())
+    week_start_date: Mapped[datetime] = mapped_column()
+    week_end_date: Mapped[datetime] = mapped_column()
+    worker_id: Mapped[int] = mapped_column(ForeignKey("workers.id"))
+
+    worker: Mapped["WorkerBase"] = relationship(back_populates="week_reports")
 
 
