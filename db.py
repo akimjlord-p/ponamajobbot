@@ -76,10 +76,28 @@ def get_report_by_username(username: str) -> list[ReportBase]:
 # ==================================
 
 
-def start_work_session(work_session: WorkSession) -> None:
+def get_today_session(worker_id: int) -> WorkSession | None:
     with Session() as session:
+        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_end = datetime.now().replace(hour=23, minute=59, second=59, microsecond=999999)
+
+        statement = select(WorkSession).where(
+            WorkSession.worker_id == worker_id,
+            WorkSession.check_in >= today_start,
+            WorkSession.check_in <= today_end
+        )
+        return session.scalars(statement).first()
+
+
+def start_work_session(work_session: WorkSession) -> bool:
+    with Session() as session:
+        existing = get_today_session(work_session.worker_id)
+        if existing:
+            return False
+
         session.add(work_session)
         session.commit()
+        return True
 
 
 def get_open_session(worker_id: int) -> WorkSession | None:
@@ -89,35 +107,6 @@ def get_open_session(worker_id: int) -> WorkSession | None:
             WorkSession.check_out.is_(None)
         )
         return session.scalars(statement).first()
-
-
-def end_work_session(session_id: int, checkout_time: datetime, report_id: int | None = None,
-                     is_auto: bool = False) -> None:
-    with Session() as session:
-        statement = select(WorkSession).where(WorkSession.id == session_id)
-        work_session = session.scalars(statement).first()
-        if work_session:
-            work_session.check_out = checkout_time
-            work_session.report_id = report_id
-            work_session.is_auto_checkout = is_auto
-            session.commit()
-
-
-def get_session_by_username(username: str) -> list[WorkSession]:
-    with Session() as session:
-        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        today_end = datetime.now().replace(hour=23, minute=59, second=59, microsecond=999999)
-
-        statement = (
-            select(WorkSession)
-            .join(WorkerBase)
-            .where(
-                WorkerBase.username == username,
-                WorkSession.check_in >= today_start,
-                WorkSession.check_in <= today_end
-            )
-        )
-        return list(session.scalars(statement).all())
 
 
 # ==================================
