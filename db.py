@@ -1,7 +1,6 @@
-from aiogram import Bot
-from sqlalchemy.orm import sessionmaker, selectinload
+from sqlalchemy.orm import sessionmaker
 from models import Base, WorkerBase, ReportBase, WorkSession, WeekReportBase  # noqa: F401
-from sqlalchemy import create_engine, select, delete, update
+from sqlalchemy import create_engine, select
 from models import Base
 from datetime import datetime, timedelta
 
@@ -107,6 +106,25 @@ def get_open_session(worker_id: int) -> WorkSession | None:
             WorkSession.check_out.is_(None)
         )
         return session.scalars(statement).first()
+
+
+def close_work_session(worker_id: int, checkout_time: datetime, report_id: int | None = None,
+                       is_auto: bool = False) -> bool:
+    with Session() as session:
+        statement = select(WorkSession).where(
+            WorkSession.worker_id == worker_id,
+            WorkSession.check_out.is_(None)
+        )
+        work_session = session.scalars(statement).first()
+
+        if not work_session:
+            return False
+
+        work_session.check_out = checkout_time
+        work_session.report_id = report_id
+        work_session.is_auto_checkout = is_auto
+        session.commit()
+        return True
 
 
 # ==================================
