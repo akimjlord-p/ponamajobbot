@@ -9,7 +9,7 @@ from keyboards import get_kb
 from aiogram.types import ReplyKeyboardRemove
 from datetime import datetime
 from zoneinfo import ZoneInfo
-
+from datetime import timedelta
 
 
 router = Router()
@@ -81,8 +81,21 @@ async def start_week_report(message: types.Message, state: FSMContext):
 @router.message(AddWeekReportFSM.week_report)
 async def get_week_report(message: types.Message, state: FSMContext, is_admin: bool):
     report_text = message.text
-    week_report = WeekReportBase(message=report_text,
-                                 worker_id=get_worker_id_by_username(username=message.from_user.username))
+    worker_id = get_worker_id_by_username(username=message.from_user.username)
+
+    # Вычисляем границы текущей недели
+    today = datetime.now(ZoneInfo("Europe/Moscow"))
+    week_start = today - timedelta(days=today.weekday())
+    week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_end = week_start + timedelta(days=6, hours=23, minutes=59, seconds=59)
+
+    week_report = WeekReportBase(
+        message=report_text,
+        worker_id=worker_id,
+        week_start_date=week_start,
+        week_end_date=week_end
+    )
+
     add_week_report(week_report)
     await message.answer(text="Ваш отчет успешно сохранён", reply_markup=get_kb(is_admin))
     logging.info(f"Worker {message.from_user.username} send report successfully")
