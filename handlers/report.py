@@ -2,8 +2,8 @@ import logging
 from aiogram import Router, types, F
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from db import add_report_to_db, get_worker_id_by_username, start_work_session, close_work_session
-from models import ReportBase, WorkSession
+from db import add_report_to_db, get_worker_id_by_username, start_work_session, close_work_session, get_week_report_by_username, add_week_report
+from models import ReportBase, WorkSession, WeekReportBase
 from keyboards import get_kb
 from aiogram.types import ReplyKeyboardRemove
 from datetime import datetime
@@ -16,6 +16,9 @@ router = Router()
 
 class AddReportFSM(StatesGroup):
     report = State()
+
+class AddWeekReportFSM(StatesGroup):
+    week_report = State()
 
 @router.message(F.text.lower() == "/checkin")
 async def checkin(message: types.Message):
@@ -30,7 +33,6 @@ async def checkin(message: types.Message):
 
 @router.message(F.text.lower() == "/checkout")
 async def checkout(message: types.Message, state: FSMContext):
-    logging.info(f"Checkout {message.from_user.username}")
     worker_id = get_worker_id_by_username(username=message.from_user.username)
     res = close_work_session(worker_id=worker_id, checkout_time=datetime.now(ZoneInfo("Europe/Moscow")))
     if not res:
@@ -39,6 +41,7 @@ async def checkout(message: types.Message, state: FSMContext):
 
     await state.set_state(AddReportFSM.report)
     await message.answer(text="Вы успешно завершили рабочую смену. Введите текст отчета", reply_markup=ReplyKeyboardRemove())
+    logging.info(f"Checkout {message.from_user.username}")
 
 
 @router.message(AddReportFSM.report)
@@ -50,7 +53,31 @@ async def get_report(message: types.Message, state: FSMContext, is_admin: bool):
     report = ReportBase(message=report_text, worker_id=worker_id, date=moscow_now)
     add_report_to_db(report)
     await message.answer(text="Ваш отчет успешно сохранён", reply_markup=get_kb(is_admin))
-    logging.info(f"Worker {message.from_user.username} get report successfully")
+    logging.info(f"Worker {message.from_user.username} send report successfully")
     await state.clear()
+
+
+@router.message(F.text.lower() == "/report")
+async def checkout(message: types.Message, state: FSMContext):
+    res = get_week_report_by_username(username=message.from_user.username)
+    if res:
+        await message.answer(text="Вы уже отправляли недельный отчет")
+        return
+
+    await state.set_state(AddReportFSM.report)
+    await message.answer(text="Введите текст недельного отчета", reply_markup=ReplyKeyboardRemove())
+    logging.info(f"Week report {message.from_user.username}")
+
+
+@router.message(AddReportFSM.report)
+async def get_report(message: types.Message, state: FSMContext, is_admin: bool):
+    report_text = message.text
+    week_report = WeekReportBase(message=report_text,
+                                 worker_id=get_worker_id_by_username(username=message.from_user.username))
+    add_week_report(week_report)
+    await message.answer(text="Ваш отчет успешно сохранён", reply_markup=get_kb(is_admin))
+    logging.info(f"Worker {message.from_user.username} send report successfully")
+    await state.clear()
+
 
 

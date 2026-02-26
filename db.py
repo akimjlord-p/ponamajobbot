@@ -3,6 +3,8 @@ from models import Base, WorkerBase, ReportBase, WorkSession, WeekReportBase  # 
 from sqlalchemy import create_engine, select
 from models import Base
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
 
 DB_URL = 'sqlite:///database.db'
 engine = create_engine(DB_URL, echo=True)
@@ -55,8 +57,8 @@ def add_report_to_db(report: ReportBase) -> None:
 
 def get_report_by_username(username: str) -> list[ReportBase]:
     with Session() as session:
-        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        today_end = datetime.now().replace(hour=23, minute=59, second=59, microsecond=999999)
+        today_start = datetime.now(ZoneInfo("Europe/Moscow")).replace(hour=0, minute=0, second=0, microsecond=0)
+        today_end = datetime.now(ZoneInfo("Europe/Moscow")).replace(hour=23, minute=59, second=59, microsecond=999999)
 
         statement = (
             select(ReportBase)
@@ -77,8 +79,8 @@ def get_report_by_username(username: str) -> list[ReportBase]:
 
 def get_today_session(worker_id: int) -> WorkSession | None:
     with Session() as session:
-        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        today_end = datetime.now().replace(hour=23, minute=59, second=59, microsecond=999999)
+        today_start = datetime.now(ZoneInfo("Europe/Moscow")).replace(hour=0, minute=0, second=0, microsecond=0)
+        today_end = datetime.now(ZoneInfo("Europe/Moscow")).replace(hour=23, minute=59, second=59, microsecond=999999)
 
         statement = select(WorkSession).where(
             WorkSession.worker_id == worker_id,
@@ -132,21 +134,29 @@ def close_work_session(worker_id: int, checkout_time: datetime, report_id: int |
 # ==================================
 
 
-def add_week_report(week_report: WeekReportBase) -> None:
+def add_week_report(week_report: WeekReportBase) -> bool:
     with Session() as session:
+        statement = select(WeekReportBase).where(
+            WeekReportBase.worker_id == week_report.worker_id,
+            WeekReportBase.week_start_date == week_report.week_start_date,
+            WeekReportBase.week_end_date == week_report.week_end_date
+        )
+        existing = session.scalars(statement).first()
+
+        if existing:
+            return False
+
         session.add(week_report)
         session.commit()
+        return True
 
 
-def get_week_report_by_username(username: str) -> list[WeekReportBase]:
-    """Возвращает недельный отчет работника за текущую неделю"""
+def get_week_report_by_username(username: str) -> WeekReportBase | None:
     with Session() as session:
-        # Понедельник текущей недели
-        today = datetime.now()
+        today = datetime.now(ZoneInfo("Europe/Moscow"))
         week_start = today - timedelta(days=today.weekday())
         week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
 
-        # Воскресенье текущей недели
         week_end = week_start + timedelta(days=6, hours=23, minutes=59, seconds=59)
 
         statement = (
@@ -154,10 +164,10 @@ def get_week_report_by_username(username: str) -> list[WeekReportBase]:
             .join(WorkerBase)
             .where(
                 WorkerBase.username == username,
-                WeekReportBase.week_start_date >= week_start,
-                WeekReportBase.week_end_date <= week_end
+                WeekReportBase.week_start_date == week_start.date(),
+                WeekReportBase.week_end_date == week_end.date()
             )
         )
-        return list(session.scalars(statement).all())
+        return session.scalars(statement).first()
 
 
