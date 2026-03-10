@@ -25,7 +25,7 @@ dp.include_router(admin.router)
 async def main() -> None:
     scheduler = AsyncIOScheduler(timezone="Europe/Moscow")
     logging.info("Add jobs: send_weekly_reports, send_daily_reports.")
-    scheduler.add_job(send_weekly_reports(bot), trigger="cron", day_of_week="sun", hour=9, minute=20, kwargs={"bot": bot})
+    scheduler.add_job(send_weekly_reports, trigger="cron", day_of_week="sun", hour=9, minute=20, kwargs={"bot": bot})
     scheduler.add_job(send_daily_reports, trigger="cron", hour=21, minute=0, kwargs={"bot": bot})
     scheduler.start()
     await dp.start_polling(bot)
