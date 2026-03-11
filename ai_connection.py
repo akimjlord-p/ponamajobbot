@@ -209,7 +209,6 @@ async def ask_sql(question: str) -> str:
 
     for step in range(MAX_SQL_STEPS):
 
-        print(f"\nSTEP {step+1}")
 
         action = await generate_next_step(question, history)
 
@@ -219,11 +218,9 @@ async def ask_sql(question: str) -> str:
         sql = extract_sql(action)
         sql = validate_sql(sql)
 
-        print("SQL:", sql)
 
         result = db.run(sql)
 
-        print("RESULT:", result)
 
         last_result = result
 
@@ -309,14 +306,3 @@ async def ask_sql(question: str) -> str:
     return resp.content
 
 
-async def main():
-
-    result = await ask_sql(
-        "Кого бы расстрелял из работничков?"
-    )
-
-    print("\nFINAL ANSWER:\n")
-    print(result)
-
-
-asyncio.run(main())

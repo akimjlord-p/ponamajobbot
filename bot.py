@@ -4,7 +4,7 @@ from aiogram.types import Update
 from config import MAIN_ID, BOT_TOKEN
 from middlewares import AccessMiddleware, AdminMiddleware
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from handlers import admin, start, report
+from handlers import admin, start, report, ai_mod
 from auto_mailings import send_weekly_reports, send_daily_reports
 
 
@@ -16,6 +16,7 @@ dp.message.outer_middleware(AdminMiddleware())
 dp.include_router(report.router)
 dp.include_router(start.router)
 dp.include_router(admin.router)
+dp.include_router(ai_mod.router)
 
 
 

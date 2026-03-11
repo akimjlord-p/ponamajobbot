@@ -14,4 +14,4 @@ async def start_command(message: types.Message, is_admin: bool):
     if not is_admin:
         await message.answer(text=f"Привет, {username}!\nКоманды: /report", reply_markup=get_kb(is_admin))
     else:
-        await message.answer(text=f"Привет, {username}!\nКоманды: /worker", reply_markup=get_kb(is_admin))
+        await message.answer(text=f"Привет, {username}!\nКоманды: /worker /ai", reply_markup=get_kb(is_admin))
