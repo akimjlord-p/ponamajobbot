@@ -1,6 +1,8 @@
 from __future__ import annotations
+
 from datetime import datetime, date
 from decimal import Decimal
+
 from sqlalchemy import (
     String,
     Text,
@@ -13,6 +15,7 @@ from sqlalchemy import (
     Numeric,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from db.base import Base
 from db.enums import *
 
@@ -152,6 +155,24 @@ class AdminParsingContext(Base):
     )
 
 
+class AdminRequestsContext(Base):
+    __tablename__ = "admin_requests_contexts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_by_admin_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"),
+        nullable=False,
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+    )
+
+
 class WorkSession(Base):
     __tablename__ = "work_sessions"
 
@@ -214,6 +235,11 @@ class WorkReport(Base):
     status: Mapped[ReportStatus] = mapped_column(
         SAEnum(ReportStatus),
         nullable=False,
+    )
+
+    result_type: Mapped[ReportResultType | None] = mapped_column(
+        SAEnum(ReportResultType),
+        nullable=True,
     )
 
     admin_review_comment: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -330,6 +356,12 @@ class AdminAiRequest(Base):
 
     report_id: Mapped[int | None] = mapped_column(
         ForeignKey("work_reports.id"),
+        nullable=True,
+        index=True,
+    )
+
+    context_id: Mapped[int | None] = mapped_column(
+        ForeignKey("admin_requests_contexts.id"),
         nullable=True,
         index=True,
     )

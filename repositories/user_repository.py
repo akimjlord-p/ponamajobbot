@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from db.models import User
 from db.enums import UserRole
+from db.models import User
 
 
 class UserRepository:
@@ -36,6 +38,14 @@ class UserRepository:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
+    async def get_authorized_workers(self) -> list[User]:
+        stmt = select(User).where(
+            User.role == UserRole.WORKER,
+            User.telegram_id.is_not(None),
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
     async def create(
         self,
         username: str,
@@ -55,14 +65,42 @@ class UserRepository:
         await self.session.flush()
         return user
 
+    async def update(
+        self,
+        user: User,
+        *,
+        username: str | None = None,
+        telegram_id: int | None = None,
+        role: UserRole | None = None,
+        authorised_at: datetime | None = None,
+    ) -> User:
+        if username is not None:
+            user.username = username
+        if telegram_id is not None:
+            user.telegram_id = telegram_id
+        if role is not None:
+            user.role = role
+        if authorised_at is not None:
+            user.authorised_at = authorised_at
+
+        await self.session.flush()
+        return user
+
     async def authorize_user(
-            self,
-            user: User,
-            telegram_id: int,
-            authorised_at: datetime,
+        self,
+        user: User,
+        telegram_id: int,
+        authorised_at: datetime,
     ) -> User:
         user.telegram_id = telegram_id
         user.authorised_at = authorised_at
+
+        await self.session.flush()
+        return user
+
+    async def deauthorize_user(self, user: User) -> User:
+        user.telegram_id = None
+        user.authorised_at = None
 
         await self.session.flush()
         return user

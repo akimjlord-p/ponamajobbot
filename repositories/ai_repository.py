@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from db.models import AdminAiRequest, AdminParsingContext
+from db.models import AdminAiRequest, AdminParsingContext, AdminRequestsContext
 
 
 class AiRepository:
@@ -16,11 +18,13 @@ class AiRepository:
         question: str,
         created_at: datetime,
         report_id: int | None = None,
+        context_id: int | None = None,
         answer: str | None = None,
     ) -> AdminAiRequest:
         ai_request = AdminAiRequest(
             admin_user_id=admin_user_id,
             report_id=report_id,
+            context_id=context_id,
             question=question,
             answer=answer,
             created_at=created_at,
@@ -52,6 +56,15 @@ class AiRepository:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
+    async def get_ai_requests_by_report(self, report_id: int) -> list[AdminAiRequest]:
+        stmt = (
+            select(AdminAiRequest)
+            .where(AdminAiRequest.report_id == report_id)
+            .order_by(AdminAiRequest.created_at.desc())
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
     async def create_parsing_context(
         self,
         text: str,
@@ -77,3 +90,41 @@ class AiRepository:
         )
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
+
+    async def deactivate_parsing_contexts(self) -> None:
+        contexts = await self.get_active_parsing_contexts()
+        for context in contexts:
+            context.is_active = False
+        await self.session.flush()
+
+    async def create_requests_context(
+        self,
+        text: str,
+        created_by_admin_id: int,
+        created_at: datetime,
+        is_active: bool = True,
+    ) -> AdminRequestsContext:
+        context = AdminRequestsContext(
+            text=text,
+            is_active=is_active,
+            created_by_admin_id=created_by_admin_id,
+            created_at=created_at,
+        )
+        self.session.add(context)
+        await self.session.flush()
+        return context
+
+    async def get_active_requests_contexts(self) -> list[AdminRequestsContext]:
+        stmt = (
+            select(AdminRequestsContext)
+            .where(AdminRequestsContext.is_active.is_(True))
+            .order_by(AdminRequestsContext.created_at.desc())
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def deactivate_requests_contexts(self) -> None:
+        contexts = await self.get_active_requests_contexts()
+        for context in contexts:
+            context.is_active = False
+        await self.session.flush()

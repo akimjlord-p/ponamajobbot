@@ -23,3 +23,9 @@ class WorkerCommentTag(str, Enum):
     IDEA = "idea"
     COMPLAINT = "complaint"
     OTHER = "other"
+
+
+class ReportResultType(str, Enum):
+    OPERATIONS_CREATED = "operations_created"
+    TEXT_ONLY = "text_only"
+    NO_ACTIONABLE_DATA = "no_actionable_data"
