@@ -1,108 +1,61 @@
 # ponamajobbot
 
-Telegram-бот для учета рабочих смен, сбора отчетов и формирования управленческой аналитики.
+Telegram bot for tracking work sessions, collecting reports, and building internal analytics.
 
-## Что есть в проекте сейчас
+The project is being rebuilt around an explicit service and repository architecture with SQLAlchemy models in `db/`.
 
-- Контроль доступа по `@username` + роль администратора.
-- Админский сценарий добавления сотрудника (`/worker`).
-- Учет рабочей смены:
-  - `/checkin` — открыть смену;
-  - `/checkout` — закрыть смену и отправить дневной отчет.
-- Недельный отчет сотрудника (`/report`).
-- Автоматические рассылки руководителю:
-  - ежедневная сводка;
-  - еженедельная сводка.
-- AI-режим для админа (`/ai`): бот строит SQL-запросы к базе отчетов и возвращает текстовую аналитику.
-- Хранение данных в SQLite через SQLAlchemy.
-
-## Технологии
-
-- Python 3.11+
-- [aiogram](https://docs.aiogram.dev/)
-- SQLAlchemy
-- APScheduler
-- python-dotenv
-- httpx
-- langchain-openai
-- langchain-community
-- SQLite (текущая БД)
-
-## Структура проекта
+## Architecture
 
 ```text
-.
-├── main.py               # Точка входа
-├── bot.py                # Инициализация бота, роутеры, scheduler
-├── config.py             # Переменные окружения
-├── db.py                 # Синхронный слой работы с БД
-├── models.py             # SQLAlchemy-модели
-├── auto_mailings.py      # Ежедневная/еженедельная рассылка
-├── ai_connection.py      # AI-аналитика (LLM + SQL)
-├── middlewares.py        # Access/Admin middleware
-├── keyboards.py          # Клавиатуры
-└── handlers/
-    ├── start.py          # /start
-    ├── admin.py          # /worker
-    ├── report.py         # /checkin, /checkout, /report
-    └── ai_mod.py         # /ai
+main.py
+bot.py
+config.py
+middlewares.py
+auto_mailings.py
+ai_connection.py
+
+handlers/
+  start.py
+  admin.py
+  report.py
+  worker.py
+
+services/
+  user_service.py
+  worker_service.py
+  session_service.py
+  report_service.py
+  operation_service.py
+  rate_service.py
+  comment_service.py
+  analytic_service.py
+
+repositories/
+  user_repository.py
+  session_repository.py
+  report_repository.py
+  operation_repository.py
+  rate_repository.py
+  comment_repository.py
+  ai_repository.py
+
+db/
+  base.py
+  enums.py
+  models.py
+  session.py
 ```
 
-## Быстрый старт (локально)
+## Layers
 
-### 1) Подготовка окружения
+- `handlers` handle Telegram updates and user flows
+- `services` contain business logic
+- `repositories` work with the database
+- `db` contains SQLAlchemy models, enums, and session setup
 
-```bash
-python -m venv .venv
-source .venv/bin/activate
-```
+## Goals
 
-### 2) Установка зависимостей
-
-`requirements.txt` пока не добавлен, поэтому установка вручную:
-
-```bash
-pip install aiogram sqlalchemy apscheduler python-dotenv httpx langchain-openai langchain-community
-```
-
-### 3) Настройка `.env`
-
-Создайте `.env` в корне проекта:
-
-```env
-BOT_TOKEN=your_telegram_bot_token
-MAIN_ID=your_telegram_id
-ADMINS=123456789,987654321
-
-# Для AI-модуля (имя переменной должно совпадать с кодом config.py)
-OPENAPI_API_KEY=your_openai_api_key
-PROXY_URL=http://your-proxy:port
-```
-
-> Примечание: в текущем коде используется переменная `OPENAPI_API_KEY` (именно в таком написании).
-
-### 4) Запуск
-
-```bash
-python main.py
-```
-
-При первом запуске создается файл БД `database.db` (SQLite).
-
-## Текущий план разработки
-
-Приоритетные задачи:
-
-1. Перевести слой БД на **асинхронные запросы**.
-2. Убрать проблему **N+1** при формировании рассылок отчетов.
-3. Добавить **Docker** (сборка и запуск сервиса).
-4. Добавить и поддерживать **requirements.txt**.
-
-## Возможные задачи следующего этапа
-
-- Переход с SQLite на **PostgreSQL**.
-- Добавление миграций схемы БД (например, **Alembic**).
-
-## Статус
-
-Проект активно развивается: документация и инфраструктура будут расширяться вместе с реализацией roadmap-задач.
+- write AI service
+- write tests
+- write handlers
+- add Docker
