@@ -24,7 +24,8 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(100), unique=True, index=True)
     telegram_id: Mapped[int | None] = mapped_column(unique=True, nullable=True, index=True)
     role: Mapped[UserRole] = mapped_column(SAEnum(UserRole), nullable=False)
-    authorised_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    authorised_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
     work_sessions: Mapped[list["WorkSession"]] = relationship(
         back_populates="worker",
