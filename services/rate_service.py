@@ -39,6 +39,8 @@ class RateService:
         if not product:
             return None
         operation = await self.operation_repository.get_operation_type_by_name(operation_name)
+        if not operation:
+            return None
         old_rate = await self.get_rate(product.id, operation.id)
         old_rate.rate = new_rate_value
         new_rate = await self.rate_repository.update(old_rate)
