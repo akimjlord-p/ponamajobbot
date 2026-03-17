@@ -9,6 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db.models import Rate
 
 
+_UNSET = object()
+
+
 class RateRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -91,18 +94,18 @@ class RateRepository:
         self,
         rate_obj: Rate,
         *,
-        rate: Decimal | None = None,
-        valid_from: date | None = None,
-        valid_to: date | None = None,
-        is_active: bool | None = None,
+        rate_value: Decimal | object = _UNSET,
+        valid_from: date | object = _UNSET,
+        valid_to: date | None | object = _UNSET,
+        is_active: bool | object = _UNSET,
     ) -> Rate:
-        if rate is not None:
-            rate_obj.rate = rate
-        if valid_from is not None:
+        if rate_value is not _UNSET:
+            rate_obj.rate = rate_value
+        if valid_from is not _UNSET:
             rate_obj.valid_from = valid_from
-        if valid_to is not None:
+        if valid_to is not _UNSET:
             rate_obj.valid_to = valid_to
-        if is_active is not None:
+        if is_active is not _UNSET:
             rate_obj.is_active = is_active
 
         await self.session.flush()
