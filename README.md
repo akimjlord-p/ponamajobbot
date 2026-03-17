@@ -59,3 +59,4 @@ db/
 - write tests
 - write handlers
 - add Docker
+- add GitHub actions
