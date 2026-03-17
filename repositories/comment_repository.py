@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime, time, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -50,6 +50,21 @@ class CommentRepository:
         stmt = (
             select(WorkerComment)
             .where(WorkerComment.tag == tag)
+            .order_by(WorkerComment.created_at.desc())
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_comment_by_date(self, target_date: date) -> list[WorkerComment]:
+        start_of_day = datetime.combine(target_date, time.min)
+        end_of_day = start_of_day + timedelta(days=1)
+
+        stmt = (
+            select(WorkerComment)
+            .where(
+                WorkerComment.created_at >= start_of_day,
+                WorkerComment.created_at < end_of_day,
+            )
             .order_by(WorkerComment.created_at.desc())
         )
         result = await self.session.execute(stmt)
