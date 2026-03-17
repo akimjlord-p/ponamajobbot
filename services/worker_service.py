@@ -62,10 +62,13 @@ class WorkerService:
             operations = []
             if report is not None:
                 operations = await self.operation_repo.get_operations_by_report(report.id)
-
+            if work_session.ended_at:
+                duration = (work_session.ended_at - work_session.started_at).total_seconds()
+            else:
+                duration = None
             result.append(
                 {
-                    "duration": (work_session.ended_at - work_session.started_at).total_seconds(),
+                    "duration": duration,
                     "report": report,
                     "operations": operations,
                 }
