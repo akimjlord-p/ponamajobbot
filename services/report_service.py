@@ -1,9 +1,12 @@
+from datetime import timedelta
 from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.models import WorkReport
+from repositories.operation_repository import OperationRepository
 from repositories.report_repository import ReportRepository
+from repositories.session_repository import SessionRepository
 from repositories.user_repository import UserRepository
 from services.operation_service import OperationService
 from utils.apptime import apptime
@@ -17,6 +20,8 @@ class ReportService:
         self.report_repository = ReportRepository(self.session)
         self.user_repository = UserRepository(self.session)
         self.operation_service = OperationService(self.session)
+        self.operation_repository = OperationRepository(self.session)
+        self.session_repository = SessionRepository(self.session)
 
     async def create_work_report(
         self,
@@ -81,3 +86,26 @@ class ReportService:
         await self.report_repository.set_total_amount(report.id, total_amount)
         await self.session.commit()
         return report
+
+    async def get_today_reports_with_operations(self) -> list[dict] | None:
+        today = apptime().date()
+        reports = self.report_repository.get_reports_in_range(today, today + timedelta(days=1))
+        if not reports:
+            return None
+        result: list[dict] = []
+
+        for report in reports:
+            operations = await self.operation_repository.get_operations_by_report(report.report_id)
+            work_session = await self.session_repository.get_by_worker_and_date(report.worker_id, today.date())
+            duration = (work_session.ended_at - work_session.started_at).total_seconds()
+            result.append(
+                {
+                    "report": report,
+                    "operations": operations,
+                    "duration": duration,
+                }
+            )
+
+        return result
+
+
