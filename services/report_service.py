@@ -89,15 +89,18 @@ class ReportService:
 
     async def get_today_reports_with_operations(self) -> list[dict] | None:
         today = apptime().date()
-        reports = self.report_repository.get_reports_in_range(today, today + timedelta(days=1))
+        reports = await self.report_repository.get_reports_in_range(today, today + timedelta(days=1))
         if not reports:
             return None
         result: list[dict] = []
 
         for report in reports:
-            operations = await self.operation_repository.get_operations_by_report(report.report_id)
+            operations = await self.operation_repository.get_operations_by_report(report.id)
             work_session = await self.session_repository.get_by_worker_and_date(report.worker_id, today.date())
-            duration = (work_session.ended_at - work_session.started_at).total_seconds()
+            if work_session.ended_at:
+                duration = (work_session.ended_at - work_session.started_at).total_seconds()
+            else:
+                duration = None
             result.append(
                 {
                     "report": report,
