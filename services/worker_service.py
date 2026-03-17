@@ -47,16 +47,17 @@ class WorkerService:
         await self.session.commit()
         return user
 
-    async def get_last_sessions_with_operations(self, telegram_id: int) -> list[dict]:
+    async def get_last_reports_with_operations(self, telegram_id: int) -> list[dict] | None:
         user = await self.user_repo.get_by_telegram_id(telegram_id)
         if not user or user.role != UserRole.WORKER:
-            return []
+            return None
 
         sessions = await self.session_repo.get_worker_sessions(user.id)
         last_sessions = sessions[:5]
         result: list[dict] = []
 
         for work_session in last_sessions:
+
             report = await self.report_repo.get_by_session_id(work_session.id)
             operations = []
             if report is not None:
@@ -64,7 +65,7 @@ class WorkerService:
 
             result.append(
                 {
-                    "session": work_session,
+                    "duration": (work_session.ended_at - work_session.started_at).total_seconds(),
                     "report": report,
                     "operations": operations,
                 }

@@ -27,6 +27,6 @@ class SessionService:
         if not user:
             return None
         work_session = await self.session_repository.get_open_session_by_worker(user.id)
-        work_session = await self.session_repository.close(int(str(work_session.id)), apptime(), is_auto_checkout=is_auto_checkout)
+        work_session = await self.session_repository.close(work_session.id, apptime(), is_auto_checkout=is_auto_checkout)
         await self.session.commit()
         return work_session
