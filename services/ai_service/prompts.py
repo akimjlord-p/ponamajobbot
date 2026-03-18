@@ -43,7 +43,6 @@ class Prompts:
           "operation_name": "string",
           "quantity": 1
         }}
-      ],
-      "comment": "string or null"
+      ]
     }}
     """
