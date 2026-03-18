@@ -23,7 +23,7 @@ class ParsingResult:
         operations: list[ParsedOperationRaw] | None = None,
     ) -> None:
         self.report_result = report_result
-        self.operations = operations or []
+        self.raw_operations = operations or []
 
 class AIReportParser:
     def __init__(self, llm_connection: LLMConnection, parsing_context: str) -> None:

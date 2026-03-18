@@ -2,10 +2,18 @@ from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from db.models import WorkerPerformedOperation
+from db.models import WorkerPerformedOperation, Product, OperationType
 from repositories.operation_repository import OperationRepository
 from services.rate_service import RateService
 from utils.apptime import apptime
+
+
+class NormalizedOperation:
+    def __init__(self, product: Product, operation: OperationType, quantity: int) -> None:
+        self.product = product
+        self.operation = operation
+        self.quantity = quantity
+
 
 
 class OperationService:
@@ -52,3 +60,22 @@ class OperationService:
         )
 
         return performed_operation
+
+
+class OperationNormalizerService:
+    def __init__(self, session: AsyncSession):
+        self.operation_repository = OperationRepository(session)
+
+    async def normalize_operation(self, product_name: str, operation_name: str, quantity: int) -> NormalizedOperation | None:
+        product = await self.operation_repository.get_product_by_name(product_name)
+        if not product:
+            product = await self.operation_repository.get_product_by_synonym(product_name)
+        operation = await self.operation_repository.get_operation_type_by_name(operation_name)
+        if not operation:
+            operation = await self.operation_repository.get_operation_type_by_synonym(operation_name)
+
+        if not operation or not product:
+            return None
+
+        return NormalizedOperation(product, operation, quantity)
+

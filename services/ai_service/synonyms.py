@@ -6,7 +6,7 @@ class AISynonymsGenerator:
     def __init__(self, llm_connection: LLMConnection):
         self.llm_connection = llm_connection
 
-    async def create(self, word: str) -> list[str] | None:
+    async def generate(self, word: str) -> list[str] | None:
         prompt = Prompts.get_prompt_for_synonym(word)
         result = await self.llm_connection.ask_text(prompt)
 
