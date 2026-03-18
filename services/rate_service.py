@@ -34,23 +34,32 @@ class RateService:
             return None
         return rates
 
-    async def update_rate(self, product_name, operation_name, new_rate_value) -> Rate | None:
+    async def update_rate(self, product_name: str, operation_type_name: str, new_rate_value: Decimal) -> Rate | None:
         product = await self.operation_repository.get_product_by_name(product_name)
         if not product:
             return None
-        operation = await self.operation_repository.get_operation_type_by_name(operation_name)
-        if not operation:
+        operation_type = await self.operation_repository.get_operation_type_by_name(operation_type_name)
+        if not operation_type:
             return None
-        old_rate = await self.get_rate(product.id, operation.id)
+        old_rate = await self.get_rate(product.id, operation_type.id)
+        if not old_rate:
+            return None
         old_rate.rate = new_rate_value
         new_rate = await self.rate_repository.update(old_rate)
+        await self.session.commit()
         return new_rate
 
-    async def deactivate_rate(self, product_id: int, operation_type_id: int) -> Rate | None:
-        rate = await self.rate_repository.get_rate(product_id, operation_type_id, appdate())
+    async def deactivate_rate(self, product_name: str, operation_type_name: str) -> Rate | None:
+        product = await self.operation_repository.get_product_by_name(product_name)
+        if not product:
+            return None
+        operation_type = await self.operation_repository.get_operation_type_by_name(operation_type_name)
+        if not operation_type:
+            return None
+        rate = await self.rate_repository.get_rate(product.id, operation_type.id, appdate())
         if not rate:
             return None
-        await self.rate_repository.deactivate(rate.id)
+        rate = await self.rate_repository.deactivate(rate.id)
         await self.session.commit()
         return rate
 
