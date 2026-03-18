@@ -4,7 +4,7 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 admin_kb = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text='/worker')],
-        [KeyboardButton(text='/ai')]
+        [KeyboardButton(text='/ai_service')]
     ],
     resize_keyboard=True
 )
