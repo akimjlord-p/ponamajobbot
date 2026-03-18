@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from db.enums import WorkerCommentTag
+from utils.enums import WorkerCommentTag
 from db.models import WorkerComment
 from repositories.comment_repository import CommentRepository
 from repositories.user_repository import UserRepository

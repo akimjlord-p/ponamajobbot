@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from db.enums import UserRole
+from utils.enums import UserRole
 from db.models import User
 
 

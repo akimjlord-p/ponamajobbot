@@ -17,7 +17,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db.base import Base
-from db.enums import *
+from utils.enums import *
 
 
 class User(Base):

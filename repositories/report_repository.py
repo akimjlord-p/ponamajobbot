@@ -7,7 +7,7 @@ from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from db.enums import ReportResultType, ReportStatus
+from utils.enums import ReportResultType, ReportStatus
 from db.models import WorkReport, WorkSession
 
 

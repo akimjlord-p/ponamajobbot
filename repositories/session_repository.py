@@ -6,7 +6,7 @@ from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from db.enums import SessionStatus
+from utils.enums import SessionStatus
 from db.models import WorkSession
 
 

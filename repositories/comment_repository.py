@@ -5,7 +5,7 @@ from datetime import date, datetime, time, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from db.enums import WorkerCommentTag
+from utils.enums import WorkerCommentTag
 from db.models import WorkerComment
 
 

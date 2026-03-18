@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from db.enums import UserRole
+from utils.enums import UserRole
 from db.models import User
 from repositories.operation_repository import OperationRepository
 from repositories.report_repository import ReportRepository
