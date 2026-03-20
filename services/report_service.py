@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from db.models import WorkReport
+from db.models import WorkReport, WorkerPerformedOperation
 from repositories.ai_repository import AiRepository
 from repositories.operation_repository import OperationRepository
 from repositories.report_repository import ReportRepository
@@ -31,18 +31,98 @@ class ReportService:
         self.ai_repository = AiRepository(self.session)
         self.operation_normalizer_service = OperationNormalizerService(self.session)
 
+    async def _build_parsing_context(self) -> str | None:
+        parsing_contexts = await self.ai_repository.get_active_parsing_contexts()
+        parsing_context = "\n".join([item.text for item in parsing_contexts])
+        return parsing_context
+
+    async def _create_report_for_admin_review(self,
+                                              session_id: int,
+                                              worker_id: int,
+                                              report_text: str) -> WorkReport | None:
+        report = await self.report_repository.create(session_id=session_id,
+                                                     worker_id=worker_id,
+                                                     text=report_text,
+                                                     status=ReportStatus.SHOULD_BE_SENT_TO_ADMIN,
+                                                     created_at=apptime(),
+                                                     result_type=ReportResultType.NO_ACTIONABLE_DATA
+                                                     )
+        return report
+
+    async def _create_report_with_only_text(self,
+                                            session_id: int,
+                                            worker_id: int,
+                                            report_text: str) -> WorkReport | None:
+        report = await self.report_repository.create(session_id=session_id,
+                                                     worker_id=worker_id,
+                                                     text=report_text,
+                                                     status=ReportStatus.PARSED,
+                                                     created_at=apptime(),
+                                                     result_type=ReportResultType.TEXT_ONLY)
+        return report
+
+    async def _create_report_with_operations(self,
+                                             session_id: int,
+                                             worker_id: int,
+                                             report_text: str) -> WorkReport | None:
+        report = await self.report_repository.create(session_id=session_id,
+                                                     worker_id=worker_id,
+                                                     text=report_text,
+                                                     status=ReportStatus.PARSED,
+                                                     created_at=apptime(),
+                                                     result_type=ReportResultType.OPERATIONS_CREATED)
+        return report
+
+    async def _normalize_operations(self, raw_operations) -> list[NormalizedOperation] | None:
+        normalized_operations: list[NormalizedOperation] = []
+        for raw_operation in raw_operations:
+            normalized_operation = await self.operation_normalizer_service.normalize_operation(
+                raw_operation.product_name,
+                raw_operation.operation_type_name,
+                raw_operation.quantity,
+            )
+            if not normalized_operation:
+                return None
+            normalized_operations.append(normalized_operation)
+        return normalized_operations
+
+    async def _generate_performed_operations(self, normalized_operations: list[NormalizedOperation], worker_id: int, session_id: int, report_id: int) -> list[WorkerPerformedOperation] | None:
+        performed_operations: list[WorkerPerformedOperation] = []
+        for normalized_operation in normalized_operations:
+            performed_operation = await self.operation_service.create_performed_operation(
+                normalized_operation.product.id,
+                normalized_operation.operation.id,
+                normalized_operation.quantity,
+                worker_id,
+                session_id,
+                report_id
+            )
+            if not performed_operation:
+                return None
+            performed_operations.append(performed_operation)
+        return performed_operations
+
+    @staticmethod
+    def _count_total_amount(performed_operations: list[WorkerPerformedOperation]) -> Decimal:
+        total_amount = Decimal("0.00")
+        for performed_operation in performed_operations:
+            total_amount += performed_operation.amount
+        return total_amount
+
+
+
     async def create_work_report(
         self,
         report_text: str,
         telegram_id: int,
         session_id: int,
     ) -> WorkReport | None:
+
         worker = await self.user_repository.get_by_telegram_id(telegram_id)
         if not worker:
             return None
 
-        parsing_contexts = await self.ai_repository.get_active_parsing_contexts()
-        parsing_context = "\n".join([item.text for item in parsing_contexts])
+        parsing_context = await self._build_parsing_context()
 
         parsing_result = await self.ai_service.parse_report(
             parsing_context=parsing_context,
@@ -50,84 +130,53 @@ class ReportService:
         )
 
         if parsing_result.report_result == ReportResultType.NO_ACTIONABLE_DATA:
-            report = await self.report_repository.create(
+            report = await self._create_report_for_admin_review(session_id=session_id,
+                                                                worker_id=worker.id,
+                                                                report_text=report_text)
+            await self.session.commit()
+            return report
+
+        if parsing_result.report_result == ReportResultType.TEXT_ONLY:
+            report = await self._create_report_with_only_text(session_id=session_id,
+                                                              worker_id=worker.id,
+                                                              report_text=report_text
+                                                              )
+            await self.session.commit()
+            return report
+
+        normalized_operations = await self._normalize_operations(parsing_result.raw_operations)
+        if not normalized_operations:
+            report = await self._create_report_for_admin_review(
                 session_id=session_id,
                 worker_id=worker.id,
-                text=report_text,
+                report_text=report_text
+            )
+            await self.session.commit()
+            return report
+
+
+        report = await self._create_report_with_operations(
+            session_id=session_id,
+            worker_id=worker.id,
+            report_text=report_text,
+        )
+
+        performed_operations = await self._generate_performed_operations(
+            normalized_operations=normalized_operations,
+            worker_id=worker.id,
+            session_id=session_id,
+            report_id=report.id,
+        )
+        if not performed_operations:
+            await self.report_repository.update(
+                report,
                 status=ReportStatus.SHOULD_BE_SENT_TO_ADMIN,
-                created_at=apptime(),
                 result_type=ReportResultType.NO_ACTIONABLE_DATA,
             )
             await self.session.commit()
             return report
 
-        if parsing_result.report_result == ReportResultType.TEXT_ONLY:
-            report = await self.report_repository.create(
-                session_id=session_id,
-                worker_id=worker.id,
-                text=report_text,
-                status=ReportStatus.PARSED,
-                created_at=apptime(),
-                result_type=ReportResultType.TEXT_ONLY,
-            )
-            await self.session.commit()
-            return report
-
-        normalized_operations: list[NormalizedOperation] = []
-
-        for raw_operation in parsing_result.raw_operations:
-            normalized_operation = await self.operation_normalizer_service.normalize_operation(
-                raw_operation.product_name,
-                raw_operation.operation_type_name,
-                raw_operation.quantity,
-            )
-
-            if not normalized_operation:
-                report = await self.report_repository.create(
-                    session_id=session_id,
-                    worker_id=worker.id,
-                    text=report_text,
-                    status=ReportStatus.SHOULD_BE_SENT_TO_ADMIN,
-                    created_at=apptime(),
-                    result_type=ReportResultType.NO_ACTIONABLE_DATA,
-                )
-                await self.session.commit()
-                return report
-
-            normalized_operations.append(normalized_operation)
-
-        report = await self.report_repository.create(
-            session_id=session_id,
-            worker_id=worker.id,
-            text=report_text,
-            status=ReportStatus.PARSED,
-            created_at=apptime(),
-            result_type=ReportResultType.OPERATIONS_CREATED,
-        )
-
-        total_amount = Decimal("0.00")
-
-        for operation in normalized_operations:
-            performed_operation = await self.operation_service.create_performed_operation(
-                product_id=operation.product.id,
-                operation_type_id=operation.operation.id,
-                quantity=operation.quantity,
-                worker_id=worker.id,
-                session_id=session_id,
-                report_id=report.id,
-            )
-
-            if not performed_operation:
-                await self.report_repository.update(
-                    report,
-                    status=ReportStatus.SHOULD_BE_SENT_TO_ADMIN,
-                    result_type=ReportResultType.NO_ACTIONABLE_DATA,
-                )
-                await self.session.commit()
-                return report
-
-            if performed_operation.amount is not None:
-                total_amount += performed_operation.amount
+        total_amount = self._count_total_amount(performed_operations)
 
         await self.report_repository.set_total_amount(report.id, total_amount)
         await self.session.commit()
