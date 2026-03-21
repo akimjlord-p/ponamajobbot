@@ -1,3 +1,6 @@
+import json
+
+
 class Prompts:
     @staticmethod
     def get_prompt_for_synonym(word: str) ->str:
@@ -46,3 +49,102 @@ class Prompts:
       ]
     }}
     """
+
+    @staticmethod
+    def get_prompt_for_analytics_step(
+        question: str,
+        schema: str,
+        request_context: str,
+        previous_steps: list,
+        max_limit: int,
+    ) -> str:
+        steps_payload = []
+        for step in previous_steps:
+            steps_payload.append(
+                {
+                    "step_number": step.step_number,
+                    "sql": step.sql,
+                    "comment": step.comment,
+                    "rows": step.rows,
+                }
+            )
+
+        return f"""
+Ты аналитический AI для внутренней системы учета работы сотрудников.
+
+Твоя задача: ответить на вопрос пользователя, используя ТОЛЬКО SQL SELECT запросы к SQLite базе.
+
+Правила:
+1. Разрешены только SELECT и WITH ... SELECT.
+2. Никогда не используй INSERT, UPDATE, DELETE, DROP, ALTER, CREATE, PRAGMA.
+3. Не делай больше одного SQL statement.
+4. Всегда думай пошагово.
+5. Если данных уже достаточно — не предлагай новый SQL, а верни финальный ответ.
+6. Если нужен SQL — делай только один следующий запрос.
+7. Учитывай, что LIMIT больше {max_limit} недопустим.
+8. Верни ТОЛЬКО JSON без markdown и без пояснений.
+
+Схема БД:
+{schema}
+
+Контекст от админа:
+{request_context}
+
+Исходный вопрос:
+{question}
+
+Предыдущие шаги:
+{json.dumps(steps_payload, ensure_ascii=False)}
+
+Верни один из двух JSON форматов.
+
+Если нужен следующий SQL:
+{{
+  "action": "query",
+  "comment": "зачем нужен этот следующий запрос",
+  "sql": "SELECT ..."
+}}
+
+Если данных уже достаточно:
+{{
+  "action": "final",
+  "answer": "готовый понятный ответ пользователю на русском языке"
+}}
+""".strip()
+
+    @staticmethod
+    def get_prompt_for_analytics_final_answer(
+        question: str,
+        request_context: str,
+        previous_steps: list,
+    ) -> str:
+        steps_payload = []
+        for step in previous_steps:
+            steps_payload.append(
+                {
+                    "step_number": step.step_number,
+                    "sql": step.sql,
+                    "comment": step.comment,
+                    "rows": step.rows,
+                }
+            )
+
+        return f"""
+Ты аналитический AI.
+
+Нужно дать финальный ответ пользователю на основе уже собранных данных.
+
+Верни ТОЛЬКО JSON без markdown:
+{{
+  "answer": "финальный ответ пользователю на русском языке"
+}}
+
+Исходный вопрос:
+{question}
+
+Контекст от админа:
+{request_context}
+
+Собранные шаги и данные:
+{json.dumps(steps_payload, ensure_ascii=False)}
+""".strip()
