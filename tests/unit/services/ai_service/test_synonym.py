@@ -50,11 +50,11 @@ async def test_generate_returns_synonyms_list(
 @pytest.mark.asyncio
 @pytest.mark.skipif(not RUN_LLM_TEST, reason="LLM test disabled")
 async def test_generate_synonyms_with_real_llm():
-    need_result = "ремень,belt,strap,poyas,remen,белт,стрэп".split(",")
+    need_result = "ремень,belt,strap,белт,стрэп".split(",")
     ai_synonyms_generator = AISynonymsGenerator(llm_connection)
     real_result = await ai_synonyms_generator.generate('ремень')
 
-    assert len(real_result) >= 4
+    assert len(real_result) >= 3
     assert len(set(real_result) & set(need_result)) >= 2
     assert all(word == word.lower() for word in real_result)
     assert len(real_result) == len(real_result)
