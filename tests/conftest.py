@@ -1,17 +1,23 @@
 from unittest.mock import AsyncMock
 import pytest
+from services.ai_service.analytics import AIAnalytics
 
 
+############### FIXTURES
 @pytest.fixture
 def session_fixture():
     return AsyncMock()
-
 
 @pytest.fixture
 def llm_fixture():
     return AsyncMock()
 
+@pytest.fixture
+def analytics(llm_fixture, session_fixture):
+    return AIAnalytics(llm_fixture, session_fixture)
 
+
+############### HELP FUNC
 def overlap_ratio(a: list[str], b: list[str]) -> float:
     a_set = set(a)
     b_set = set(b)
@@ -25,3 +31,22 @@ def overlap_ratio(a: list[str], b: list[str]) -> float:
     recall = intersection / len(b_set)
 
     return 2 * precision * recall / (precision + recall)
+
+
+def make_query_response(sql="SELECT * FROM users", comment="test"):
+    return f"""
+    {{
+        "action": "query",
+        "sql": "{sql}",
+        "comment": "{comment}"
+    }}
+    """
+
+
+def make_final_response(answer="final answer"):
+    return f"""
+    {{
+        "action": "final",
+        "answer": "{answer}"
+    }}
+    """

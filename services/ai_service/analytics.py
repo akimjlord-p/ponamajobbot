@@ -13,7 +13,7 @@ from services.ai_service.prompts import Prompts
 
 
 MAX_SQL_STEPS = 5
-MAX_SQL_LIMIT = 100
+MAX_SQL_LIMIT = 50
 MAX_ROWS_FOR_MODEL = 30
 
 
