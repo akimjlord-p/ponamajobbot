@@ -1,7 +1,7 @@
 from unittest.mock import AsyncMock
 import pytest
 from services.ai_service.analytics import AIAnalytics
-
+from services.report_service import ReportService
 
 ############### FIXTURES
 @pytest.fixture
@@ -16,6 +16,14 @@ def llm_fixture():
 def analytics(llm_fixture, session_fixture):
     return AIAnalytics(llm_fixture, session_fixture)
 
+@pytest.fixture
+def ai_service_fixture():
+    return AsyncMock()
+
+
+@pytest.fixture
+def report_service(session_fixture, ai_service_fixture):
+    return ReportService(session_fixture, ai_service_fixture)
 
 ############### HELP FUNC
 def overlap_ratio(a: list[str], b: list[str]) -> float:

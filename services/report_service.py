@@ -9,6 +9,7 @@ from repositories.operation_repository import OperationRepository
 from repositories.report_repository import ReportRepository
 from repositories.session_repository import SessionRepository
 from repositories.user_repository import UserRepository
+from services.ai_service.parsing import ParsedOperationRaw
 from services.operation_service import (
     OperationService,
     OperationNormalizerService,
@@ -16,7 +17,7 @@ from services.operation_service import (
 )
 from utils.apptime import apptime
 from utils.enums import ReportStatus, ReportResultType
-from ai_service.service import AIService
+from services.ai_service.service import AIService
 
 
 class ReportService:
@@ -73,7 +74,7 @@ class ReportService:
                                                      result_type=ReportResultType.OPERATIONS_CREATED)
         return report
 
-    async def _normalize_operations(self, raw_operations) -> list[NormalizedOperation] | None:
+    async def _normalize_operations(self, raw_operations: list[ParsedOperationRaw]) -> list[NormalizedOperation] | None:
         normalized_operations: list[NormalizedOperation] = []
         for raw_operation in raw_operations:
             normalized_operation = await self.operation_normalizer_service.normalize_operation(
