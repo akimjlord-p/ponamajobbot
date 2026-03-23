@@ -48,7 +48,7 @@ class Prompts:
       "operations": [
         {{
           "product_name": "string",
-          "operation_name": "string",
+          "operation_type_name": "string",
           "quantity": integer
         }}
       ]

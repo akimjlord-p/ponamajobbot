@@ -68,7 +68,7 @@ class AIReportParser:
         operations: list[ParsedOperationRaw] = []
         for operation in operations_data:
             product_name = operation.get("product_name", None)
-            operation_type_name = operation.get("operation_name", None)
+            operation_type_name = operation.get("operation_type_name", None)
             quantity = operation.get("quantity", None)
 
             if not product_name or not operation_type_name or not quantity:
