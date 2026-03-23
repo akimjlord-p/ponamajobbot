@@ -3,7 +3,7 @@ import pytest
 from config import RUN_LLM_TEST
 from services.ai_service.parsing import AIReportParser
 from utils.enums import ReportResultType
-from services.ai_service.container import llm_connection
+from services.ai_service.container import llm_mini
 
 
 @pytest.mark.asyncio
@@ -31,7 +31,7 @@ async def test_parsing(llm_fixture):
 @pytest.mark.asyncio
 @pytest.mark.skipif(not RUN_LLM_TEST, reason="LLM test disabled")
 async def test_parsing_with_real_llm_operations_created():
-    ai_report_parser = AIReportParser(llm_connection, 'нет дополнительно контекста')
+    ai_report_parser = AIReportParser(llm_mini, 'нет дополнительно контекста')
     report_text = "упаковал 5 ремней"
     result = await ai_report_parser.parse(report_text)
     assert result.report_result == ReportResultType.OPERATIONS_CREATED
@@ -44,7 +44,7 @@ async def test_parsing_with_real_llm_operations_created():
 @pytest.mark.asyncio
 @pytest.mark.skipif(not RUN_LLM_TEST, reason="LLM test disabled")
 async def test_parsing_with_real_llm_no_data():
-    ai_report_parser = AIReportParser(llm_connection, 'нет дополнительно контекста')
+    ai_report_parser = AIReportParser(llm_mini, 'нет дополнительно контекста')
     report_text = "семь восемь пять четыре"
 
     result = await ai_report_parser.parse(report_text)
@@ -56,7 +56,7 @@ async def test_parsing_with_real_llm_no_data():
 @pytest.mark.asyncio
 @pytest.mark.skipif(not RUN_LLM_TEST, reason="LLM test disabled")
 async def test_parsing_with_real_llm_only_text():
-    ai_report_parser = AIReportParser(llm_connection, 'нет дополнительно контекста')
+    ai_report_parser = AIReportParser(llm_mini, 'нет дополнительно контекста')
     report_text = "сегодня были проблемы с погрузкой"
 
     result = await ai_report_parser.parse(report_text)

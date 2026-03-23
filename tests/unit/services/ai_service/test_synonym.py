@@ -4,7 +4,7 @@ import pytest
 
 from services.ai_service.synonyms import AISynonymsGenerator
 from config import RUN_LLM_TEST
-from services.ai_service.container import llm_connection
+from services.ai_service.container import llm_mini
 
 
 @pytest.mark.asyncio
@@ -51,7 +51,7 @@ async def test_generate_returns_synonyms_list(
 @pytest.mark.skipif(not RUN_LLM_TEST, reason="LLM test disabled")
 async def test_generate_synonyms_with_real_llm():
     need_result = "ремень,belt,strap,белт,стрэп".split(",")
-    ai_synonyms_generator = AISynonymsGenerator(llm_connection)
+    ai_synonyms_generator = AISynonymsGenerator(llm_mini)
     real_result = await ai_synonyms_generator.generate('ремень')
 
     assert len(real_result) >= 3

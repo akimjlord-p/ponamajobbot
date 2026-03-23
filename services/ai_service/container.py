@@ -2,9 +2,16 @@ from .llm_connection import LLMConnection
 from .service import AIService
 from utils.proxy import http_client
 
-llm_connection = LLMConnection(
+llm_mini = LLMConnection(
     model="gpt-4.1-mini",
     http_client=http_client,
 )
 
-ai_service = AIService(llm_connection)
+llm_smart = LLMConnection(
+    model="gpt-4.1",
+    http_client=http_client,
+)
+
+ai_service_mini = AIService(llm_mini)
+ai_service_smart = AIService(llm_smart)
+
