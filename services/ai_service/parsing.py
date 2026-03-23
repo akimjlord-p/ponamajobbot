@@ -21,9 +21,11 @@ class ParsingResult:
         self,
         report_result: ReportResultType,
         operations: list[ParsedOperationRaw] | None = None,
+        reason: str | None = None,
     ) -> None:
         self.report_result = report_result
         self.raw_operations = operations or []
+        self.reason = reason
 
 class AIReportParser:
     def __init__(self, llm_connection: LLMConnection, parsing_context: str) -> None:
@@ -35,48 +37,47 @@ class AIReportParser:
         response = await self.llm_connection.ask_text(prompt)
 
         if not response:
-            return ParsingResult(ReportResultType.NO_ACTIONABLE_DATA,)
+            return ParsingResult(ReportResultType.NO_ACTIONABLE_DATA, reason='no llm response')
         try:
             json_data = self._extract_json(response)
         except:
-            return ParsingResult(ReportResultType.NO_ACTIONABLE_DATA)
+            return ParsingResult(ReportResultType.NO_ACTIONABLE_DATA, reason='invalid_json')
 
-        report_result_type_raw = json_data.get("report_result_type", None)
+        report_result_type_raw = json_data.get("report_result", None)
 
         if not report_result_type_raw:
-            return ParsingResult(ReportResultType.NO_ACTIONABLE_DATA)
+            return ParsingResult(ReportResultType.NO_ACTIONABLE_DATA, reason='no key report_result')
 
         try:
             report_result_type = ReportResultType(report_result_type_raw)
         except:
-            return ParsingResult(ReportResultType.NO_ACTIONABLE_DATA)
+            return ParsingResult(ReportResultType.NO_ACTIONABLE_DATA, reason='invalid_report_result')
 
         if report_result_type == ReportResultType.TEXT_ONLY:
             return ParsingResult(ReportResultType.TEXT_ONLY)
 
         elif report_result_type == ReportResultType.NO_ACTIONABLE_DATA:
-            return ParsingResult(ReportResultType.NO_ACTIONABLE_DATA)
+            return ParsingResult(ReportResultType.NO_ACTIONABLE_DATA, reason='no_actionable_data')
 
         else:
             operations_data = json_data.get("operations", None)
 
 
         if not operations_data:
-            return ParsingResult(ReportResultType.NO_ACTIONABLE_DATA)
-
+            return ParsingResult(ReportResultType.NO_ACTIONABLE_DATA, reason='no operations ')
         operations: list[ParsedOperationRaw] = []
         for operation in operations_data:
             product_name = operation.get("product_name", None)
-            operation_type_name = operation.get("operation_type_name", None)
+            operation_type_name = operation.get("operation_name", None)
             quantity = operation.get("quantity", None)
 
             if not product_name or not operation_type_name or not quantity:
-                return ParsingResult(ReportResultType.NO_ACTIONABLE_DATA)
+                return ParsingResult(ReportResultType.NO_ACTIONABLE_DATA, reason='no product_name or operation_type_name or quantity')
 
             try:
                 quantity = int(quantity)
             except:
-                return ParsingResult(ReportResultType.NO_ACTIONABLE_DATA)
+                return ParsingResult(ReportResultType.NO_ACTIONABLE_DATA, reason='invalid_quantity')
 
 
             operations.append(ParsedOperationRaw(product_name, operation_type_name, quantity))

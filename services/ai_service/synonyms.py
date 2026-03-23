@@ -16,8 +16,5 @@ class AISynonymsGenerator:
         result = result.replace("\n", ",")
         synonyms = [item.strip() for item in result.split(",") if item.strip()]
 
-        if not synonyms:
-            return None
-
         return synonyms
 
