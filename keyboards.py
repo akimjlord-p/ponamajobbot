@@ -43,6 +43,15 @@ product_chapter_kb = ReplyKeyboardMarkup(
     ]
 )
 
+operation_chapter_kb = ReplyKeyboardMarkup(
+    keyboard=[
+        [
+            KeyboardButton(text="/список"),
+            KeyboardButton(text="/добавить"),
+        ]
+    ]
+)
+
 
 def get_main_kb(is_admin: bool) -> ReplyKeyboardMarkup:
     if is_admin:
