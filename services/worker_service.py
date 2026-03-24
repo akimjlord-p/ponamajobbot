@@ -24,6 +24,10 @@ class WorkerService:
         user = await self.user_repo.get_by_telegram_id(telegram_id)
         return user is not None and user.role == UserRole.ADMIN
 
+    async def get_all_usernames(self) -> list[str]:
+        users = await self.user_repo.get_all()
+        return [user.username for user in users]
+
     async def get_or_create_worker(self, username: str) -> None | User:
         user = await self.user_repo.get_by_username(username)
         if user and user.role == UserRole.WORKER:
@@ -83,4 +87,3 @@ class WorkerService:
             )
 
         return result
-

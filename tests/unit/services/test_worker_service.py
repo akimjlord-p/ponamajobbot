@@ -71,3 +71,19 @@ async def test_is_admin_returns_false_when_user_not_found(session_fixture):
 
     assert result is False
     worker_service.user_repo.get_by_telegram_id.assert_awaited_once_with(12345)
+
+
+@pytest.mark.asyncio
+async def test_get_all_usernames_returns_all_usernames(session_fixture):
+    worker_service = WorkerService(session_fixture)
+    worker_service.user_repo = AsyncMock()
+    worker_service.user_repo.get_all.return_value = [
+        SimpleNamespace(username="admin"),
+        SimpleNamespace(username="worker_1"),
+        SimpleNamespace(username="worker_2"),
+    ]
+
+    result = await worker_service.get_all_usernames()
+
+    assert result == ["admin", "worker_1", "worker_2"]
+    worker_service.user_repo.get_all.assert_awaited_once_with()
