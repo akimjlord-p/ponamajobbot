@@ -16,6 +16,14 @@ class WorkerService:
         self.operation_repo = OperationRepository(session)
         self.report_repo = ReportRepository(session)
 
+    async def user_exists(self, telegram_id: int) -> bool:
+        user = await self.user_repo.get_by_telegram_id(telegram_id)
+        return user is not None
+
+    async def is_admin(self, telegram_id: int) -> bool:
+        user = await self.user_repo.get_by_telegram_id(telegram_id)
+        return user is not None and user.role == UserRole.ADMIN
+
     async def get_or_create_worker(self, username: str) -> None | User:
         user = await self.user_repo.get_by_username(username)
         if user and user.role == UserRole.WORKER:
@@ -75,5 +83,4 @@ class WorkerService:
             )
 
         return result
-
 
