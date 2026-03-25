@@ -5,7 +5,7 @@ main_admin_kb = ReplyKeyboardMarkup(
     keyboard=[
         [
             KeyboardButton(text="/воркер"),
-            KeyboardButton(text="/аналитика"),
+            KeyboardButton(text="/сс"),
             KeyboardButton(text="/товары"),
             KeyboardButton(text="/операции"),
             KeyboardButton(text="/тарифы"),
@@ -30,6 +30,7 @@ worker_chapter_kb = ReplyKeyboardMarkup(
             KeyboardButton(text="/список"),
             KeyboardButton(text="/добавить"),
             KeyboardButton(text="/удалить"),
+            KeyboardButton(text="/назад")
         ]
     ]
 )
@@ -39,6 +40,7 @@ product_chapter_kb = ReplyKeyboardMarkup(
         [
             KeyboardButton(text="/список"),
             KeyboardButton(text="/добавить"),
+            KeyboardButton(text="/назад")
         ]
     ]
 )
@@ -48,6 +50,17 @@ operation_chapter_kb = ReplyKeyboardMarkup(
         [
             KeyboardButton(text="/список"),
             KeyboardButton(text="/добавить"),
+            KeyboardButton(text="/назад")
+        ]
+    ]
+)
+
+ai_chapter_kb = ReplyKeyboardMarkup(
+    keyboard=[
+        [
+            KeyboardButton(text="/вопрос"),
+            KeyboardButton(text="/контекст"),
+            KeyboardButton(text="/назад")
         ]
     ]
 )

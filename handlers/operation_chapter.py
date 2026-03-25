@@ -5,6 +5,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
 
 from db.session import SessionLocal
+from handlers.start import send_start_menu
 from keyboards import operation_chapter_kb
 from services.ai_service.container import ai_service_mini
 from services.operation_type_service import OperationTypeService
@@ -32,8 +33,9 @@ async def send_operation_menu(message: types.Message, state: FSMContext):
     text = f"""
 Привет, <b>администратор {firstname}</b>.
 <i>Основные команды этого раздела:</i>
--/список - список операций
--/добавить - добавить операцию
+- /список - список операций
+- /добавить - добавить операцию
+- /назад - вернуться в главное меню
 """
     await state.set_state(OperationFSM.command)
     await message.answer(text, reply_markup=operation_chapter_kb, parse_mode=ParseMode.HTML)
@@ -44,6 +46,14 @@ async def operation(message: types.Message, state: FSMContext, is_admin: bool):
     if not is_admin:
         return
     await send_operation_menu(message, state)
+
+
+@router.message("/назад", OperationFSM.command)
+@router.message("/назад", AddOperationFSM.name)
+@router.message("/назад", AddOperationFSM.manual_synonyms)
+async def back_to_start(message: types.Message, state: FSMContext, is_admin: bool):
+    await state.clear()
+    await send_start_menu(message, state, is_admin)
 
 
 @router.message("/добавить", OperationFSM.command)
@@ -61,7 +71,7 @@ async def get_operation_name_to_add(message: types.Message, state: FSMContext):
         operation_type = await operation_service.add_operation_type(operation_name)
 
         if operation_type is None:
-            await message.answer(f"Операция {operation_name} уже есть в базе")
+            await message.answer(f"Операция {operation_name} уже есть в базе.")
             await send_operation_menu(message, state)
             return
 
@@ -106,7 +116,7 @@ async def get_manual_operation_synonyms(message: types.Message, state: FSMContex
         operation_type = await operation_service.get_operation_type_by_name(operation_name)
 
         if operation_type is None:
-            await message.answer(f"Операция {operation_name} не найдена в базе")
+            await message.answer(f"Операция {operation_name} не найдена в базе.")
             await send_operation_menu(message, state)
             return
 
@@ -118,11 +128,11 @@ async def get_manual_operation_synonyms(message: types.Message, state: FSMContex
     if added_synonyms:
         text = (
             f"Для операции {operation_name} добавлен синоним: {added_synonyms[0].synonym}\n"
-            "Можете отправить еще один дополнительный синоним или нажать 'Пропустить'."
+            "Можете отправить ещё один дополнительный синоним или нажать 'Пропустить'."
         )
     else:
         text = (
-            f"Синоним '{synonym}' не был добавлен для операции {operation_name}\n"
+            f"Синоним '{synonym}' не был добавлен для операции {operation_name}.\n"
             "Возможно, он уже существует. Можете отправить другой синоним или нажать 'Пропустить'."
         )
 
@@ -138,7 +148,7 @@ async def get_operations(message: types.Message, state: FSMContext):
     if operations:
         text = "Список операций:\n" + "\n".join(operation.name for operation in operations)
     else:
-        text = "Список операций пуст"
+        text = "Список операций пуст."
 
     await message.answer(text)
     await send_operation_menu(message, state)

@@ -5,6 +5,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
 
 from db.session import SessionLocal
+from handlers.start import send_start_menu
 from keyboards import product_chapter_kb
 from services.ai_service.container import ai_service_mini
 from services.product_service import ProductService
@@ -32,8 +33,9 @@ async def send_product_menu(message: types.Message, state: FSMContext):
     text = f"""
 Привет, <b>администратор {firstname}</b>.
 <i>Основные команды этого раздела:</i>
--/список - список товаров
--/добавить - добавить товар
+- /список - список товаров
+- /добавить - добавить товар
+- /назад - вернуться в главное меню
 """
     await state.set_state(ProductFSM.command)
     await message.answer(text, reply_markup=product_chapter_kb, parse_mode=ParseMode.HTML)
@@ -44,6 +46,14 @@ async def product(message: types.Message, state: FSMContext, is_admin: bool):
     if not is_admin:
         return
     await send_product_menu(message, state)
+
+
+@router.message("/назад", ProductFSM.command)
+@router.message("/назад", AddProductFSM.name)
+@router.message("/назад", AddProductFSM.manual_synonyms)
+async def back_to_start(message: types.Message, state: FSMContext, is_admin: bool):
+    await state.clear()
+    await send_start_menu(message, state, is_admin)
 
 
 @router.message("/добавить", ProductFSM.command)
@@ -61,7 +71,7 @@ async def get_product_name_to_add(message: types.Message, state: FSMContext):
         product = await product_service.create_product(product_name)
 
         if product is None:
-            await message.answer(f"Товар {product_name} уже есть в базе")
+            await message.answer(f"Товар {product_name} уже есть в базе.")
             await send_product_menu(message, state)
             return
 
@@ -103,7 +113,7 @@ async def get_manual_product_synonyms(message: types.Message, state: FSMContext)
         product = await product_service.get_product_by_name(product_name)
 
         if product is None:
-            await message.answer(f"Товар {product_name} не найден в базе")
+            await message.answer(f"Товар {product_name} не найден в базе.")
             await send_product_menu(message, state)
             return
 
@@ -112,11 +122,11 @@ async def get_manual_product_synonyms(message: types.Message, state: FSMContext)
     if added_synonyms:
         text = (
             f"Для товара {product_name} добавлен синоним: {added_synonyms[0].synonym}\n"
-            "Можете отправить еще один дополнительный синоним или нажать 'Пропустить'."
+            "Можете отправить ещё один дополнительный синоним или нажать 'Пропустить'."
         )
     else:
         text = (
-            f"Синоним '{synonym}' не был добавлен для товара {product_name}\n"
+            f"Синоним '{synonym}' не был добавлен для товара {product_name}.\n"
             "Возможно, он уже существует. Можете отправить другой синоним или нажать 'Пропустить'."
         )
 
@@ -132,7 +142,7 @@ async def get_products(message: types.Message, state: FSMContext):
     if products:
         text = "Список товаров:\n" + "\n".join(products)
     else:
-        text = "Список товаров пуст"
+        text = "Список товаров пуст."
 
     await message.answer(text)
     await send_product_menu(message, state)
