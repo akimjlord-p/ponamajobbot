@@ -1,7 +1,10 @@
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from db.models import AdminRequestsContext
 from .parsing import AIReportParser
 from .llm_connection import LLMConnection
 from .synonyms import AISynonymsGenerator
-
+from .analytics import AIAnalytics
 
 class AIService:
     def __init__(self, llm_connection: LLMConnection) -> None:
@@ -17,5 +20,10 @@ class AIService:
 
     async def generate_synonyms(self, word: str):
         return await self.AISynonymsGenerator.generate(word)
+
+    async def analytic_question(self, question: str, session: AsyncSession, context: list[AdminRequestsContext]):
+        ai_analytics = AIAnalytics(connection=self.llm_connection, session=session)
+        response = await ai_analytics.question(question, context)
+        return response
 
 

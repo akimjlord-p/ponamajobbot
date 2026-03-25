@@ -1,0 +1,111 @@
+from aiogram import Router, types
+from aiogram.enums import ParseMode
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+
+from db.session import SessionLocal
+from handlers.start import send_start_menu
+from keyboards import ai_chapter_kb
+from repositories.user_repository import UserRepository
+from services.ai_service.container import ai_service_smart
+from services.context_service import ContextService
+
+router = Router()
+
+
+class AiFSM(StatesGroup):
+    command = State()
+
+
+class QuestionFSM(StatesGroup):
+    question = State()
+
+
+class ContextFSM(StatesGroup):
+    context = State()
+
+
+async def send_ai_menu(message: types.Message, state: FSMContext):
+    firstname = message.from_user.first_name or ""
+    text = f"""
+Привет, <b>администратор {firstname}</b>.
+<i>Основные команды этого раздела:</i>
+- /вопрос - задать вопрос ИИ
+- /контекст - добавить общий контекст для запросов админа
+- /назад - вернуться в главное меню
+"""
+    await state.set_state(AiFSM.command)
+    await message.answer(text, reply_markup=ai_chapter_kb, parse_mode=ParseMode.HTML)
+
+
+@router.message("/ии")
+async def ai_chapter(message: types.Message, state: FSMContext, is_admin: bool):
+    if not is_admin:
+        return
+    await send_ai_menu(message, state)
+
+
+@router.message("/назад", AiFSM.command)
+@router.message("/назад", QuestionFSM.question)
+@router.message("/назад", ContextFSM.context)
+async def back_to_start(message: types.Message, state: FSMContext, is_admin: bool):
+    await state.clear()
+    await send_start_menu(message, state, is_admin)
+
+
+@router.message("/вопрос", AiFSM.command)
+async def question(message: types.Message, state: FSMContext):
+    await state.set_state(QuestionFSM.question)
+    await message.answer("Введите ваш вопрос. Для выхода в главное меню используйте /назад.")
+
+
+@router.message(QuestionFSM.question)
+async def get_question(message: types.Message, state: FSMContext):
+    question_text = (message.text or "").strip()
+    if not question_text:
+        await message.answer("Вопрос не должен быть пустым.")
+        return
+
+    async with SessionLocal() as session:
+        context_service = ContextService(session)
+        contexts = await context_service.get_admin_requests_contexts()
+        result = await ai_service_smart.analytic_question(question_text, session, contexts)
+
+    if result is None:
+        await message.answer("Произошла ошибка, попробуйте позже.")
+        await send_ai_menu(message, state)
+        return
+
+    await message.answer(result.answer)
+    await message.answer("Введите следующий вопрос или используйте /назад.")
+
+
+@router.message("/контекст", AiFSM.command)
+async def add_context(message: types.Message, state: FSMContext):
+    await state.set_state(ContextFSM.context)
+    await message.answer("Введите контекст для запросов админа. Для выхода в главное меню используйте /назад.")
+
+
+@router.message(ContextFSM.context)
+async def save_context(message: types.Message, state: FSMContext):
+    context_text = (message.text or "").strip()
+    if not context_text:
+        await message.answer("Контекст не должен быть пустым.")
+        return
+
+    async with SessionLocal() as session:
+        user_repository = UserRepository(session)
+        admin = await user_repository.get_by_telegram_id(message.from_user.id)
+        if admin is None:
+            await message.answer("Администратор не найден в базе.")
+            await send_ai_menu(message, state)
+            return
+
+        context_service = ContextService(session)
+        await context_service.add_admin_requests_context(
+            text=context_text,
+            created_by_admin_id=admin.id,
+        )
+
+    await message.answer("Контекст для запросов админа сохранён.")
+    await send_ai_menu(message, state)
