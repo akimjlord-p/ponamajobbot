@@ -21,7 +21,8 @@ main_worker_kb = ReplyKeyboardMarkup(
             KeyboardButton(text="/чекаут"),
             KeyboardButton(text="/комент"),
         ]
-    ]
+    ],
+    resize_keyboard=True,
 )
 
 worker_chapter_kb = ReplyKeyboardMarkup(
@@ -30,9 +31,10 @@ worker_chapter_kb = ReplyKeyboardMarkup(
             KeyboardButton(text="/список"),
             KeyboardButton(text="/добавить"),
             KeyboardButton(text="/удалить"),
-            KeyboardButton(text="/назад")
+            KeyboardButton(text="/назад"),
         ]
-    ]
+    ],
+    resize_keyboard=True,
 )
 
 product_chapter_kb = ReplyKeyboardMarkup(
@@ -40,9 +42,10 @@ product_chapter_kb = ReplyKeyboardMarkup(
         [
             KeyboardButton(text="/список"),
             KeyboardButton(text="/добавить"),
-            KeyboardButton(text="/назад")
+            KeyboardButton(text="/назад"),
         ]
-    ]
+    ],
+    resize_keyboard=True,
 )
 
 operation_chapter_kb = ReplyKeyboardMarkup(
@@ -50,9 +53,10 @@ operation_chapter_kb = ReplyKeyboardMarkup(
         [
             KeyboardButton(text="/список"),
             KeyboardButton(text="/добавить"),
-            KeyboardButton(text="/назад")
+            KeyboardButton(text="/назад"),
         ]
-    ]
+    ],
+    resize_keyboard=True,
 )
 
 ai_chapter_kb = ReplyKeyboardMarkup(
@@ -60,9 +64,23 @@ ai_chapter_kb = ReplyKeyboardMarkup(
         [
             KeyboardButton(text="/вопрос"),
             KeyboardButton(text="/контекст"),
-            KeyboardButton(text="/назад")
+            KeyboardButton(text="/назад"),
         ]
-    ]
+    ],
+    resize_keyboard=True,
+)
+
+rates_chapter_kb = ReplyKeyboardMarkup(
+    keyboard=[
+        [
+            KeyboardButton(text="/список"),
+            KeyboardButton(text="/добавить"),
+            KeyboardButton(text="/изменить"),
+            KeyboardButton(text="/деактивировать"),
+            KeyboardButton(text="/назад"),
+        ]
+    ],
+    resize_keyboard=True,
 )
 
 
