@@ -21,12 +21,19 @@ class SessionService:
         await self.session.commit()
         return work_session
 
+    async def get_open_session(self, telegram_id: int) -> None | WorkSession:
+        user = await self.user_repository.get_by_telegram_id(telegram_id)
+        if not user:
+            return None
+        return await self.session_repository.get_open_session_by_worker(user.id)
 
     async def close_session(self, telegram_id: int, is_auto_checkout: bool = False) -> None | WorkSession:
         user = await self.user_repository.get_by_telegram_id(telegram_id)
         if not user:
             return None
         work_session = await self.session_repository.get_open_session_by_worker(user.id)
+        if work_session is None:
+            return None
         work_session = await self.session_repository.close(work_session.id, apptime(), is_auto_checkout=is_auto_checkout)
         await self.session.commit()
         return work_session

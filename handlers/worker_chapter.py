@@ -1,100 +1,182 @@
 from aiogram import Router, types
-from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
 
 from db.session import SessionLocal
 from handlers.start import send_start_menu
-from keyboards import worker_chapter_kb
-from services.worker_service import WorkerService
+from services.ai_service.container import ai_service_mini
+from services.comment_service import CommentService
+from services.report_service import ReportService
+from services.session_service import SessionService
+from utils.enums import WorkerCommentTag
 
 router = Router()
 
 
-class WorkerFSM(StatesGroup):
-    command = State()
+COMMENT_TAG_LABELS: dict[str, WorkerCommentTag] = {
+    "Идея": WorkerCommentTag.IDEA,
+    "Жалоба": WorkerCommentTag.COMPLAINT,
+    "Другое": WorkerCommentTag.OTHER,
+    "idea": WorkerCommentTag.IDEA,
+    "complaint": WorkerCommentTag.COMPLAINT,
+    "other": WorkerCommentTag.OTHER,
+}
+
+comment_tag_kb = ReplyKeyboardMarkup(
+    keyboard=[
+        [
+            KeyboardButton(text="Идея"),
+            KeyboardButton(text="Жалоба"),
+            KeyboardButton(text="Другое"),
+        ],
+        [KeyboardButton(text="/назад")],
+    ],
+    resize_keyboard=True,
+)
 
 
-class AddWorkerFSM(StatesGroup):
-    username = State()
+class CheckoutFSM(StatesGroup):
+    report_text = State()
 
 
-class DeleteWorkerFSM(StatesGroup):
-    username = State()
+class CommentFSM(StatesGroup):
+    tag = State()
+    text = State()
 
 
-async def send_worker_menu(message: types.Message, state: FSMContext):
-    firstname = message.from_user.first_name or ""
-    text = f"""
-Привет, <b>администратор {firstname}</b>.
-<i>Основные команды этого раздела:</i>
-- /список - список сотрудников
-- /добавить - добавить сотрудника
-- /удалить - удалить сотрудника
-- /назад - вернуться в главное меню
-"""
-    await state.set_state(WorkerFSM.command)
-    await message.answer(text, reply_markup=worker_chapter_kb, parse_mode=ParseMode.HTML)
-
-
-@router.message("/воркер")
-async def worker(message: types.Message, state: FSMContext, is_admin: bool):
-    if not is_admin:
-        return
-    await send_worker_menu(message, state)
-
-
-@router.message("/назад", WorkerFSM.command)
-@router.message("/назад", AddWorkerFSM.username)
-@router.message("/назад", DeleteWorkerFSM.username)
+@router.message("/назад", CheckoutFSM.report_text)
+@router.message("/назад", CommentFSM.tag)
+@router.message("/назад", CommentFSM.text)
 async def back_to_start(message: types.Message, state: FSMContext, is_admin: bool):
     await state.clear()
     await send_start_menu(message, state, is_admin)
 
 
-@router.message("/добавить", WorkerFSM.command)
-async def add_worker(message: types.Message, state: FSMContext):
-    await state.set_state(AddWorkerFSM.username)
-    await message.answer("Введите юзернейм сотрудника. Пример: @username")
+@router.message("/чекин")
+async def checkin(message: types.Message, state: FSMContext, is_admin: bool):
+    if is_admin:
+        return
 
-
-@router.message(AddWorkerFSM.username)
-async def get_worker_username_to_add(message: types.Message, state: FSMContext):
+    await state.clear()
+    telegram_id = message.from_user.id
     async with SessionLocal() as session:
-        worker_service = WorkerService(session)
-        await worker_service.get_or_create_worker(message.text)
+        session_service = SessionService(session)
+        work_session = await session_service.open_session(telegram_id)
 
-    await message.answer(f"Сотрудник {message.text} зарегистрирован в базе.")
-    await send_worker_menu(message, state)
+    if work_session is None:
+        await message.answer("Не удалось открыть смену. Возможно, смена уже открыта.")
+        return
 
-
-@router.message("/удалить", WorkerFSM.command)
-async def delete_worker(message: types.Message, state: FSMContext):
-    await state.set_state(DeleteWorkerFSM.username)
-    await message.answer("Введите юзернейм сотрудника. Пример: @username")
+    await message.answer(f"Смена открыта: {work_session.started_at.strftime('%H:%M')}.")
 
 
-@router.message(DeleteWorkerFSM.username)
-async def get_worker_username_to_delete(message: types.Message, state: FSMContext):
+@router.message("/чекаут")
+async def checkout_start(message: types.Message, state: FSMContext, is_admin: bool):
+    if is_admin:
+        return
+
+    telegram_id = message.from_user.id
     async with SessionLocal() as session:
-        worker_service = WorkerService(session)
-        result = await worker_service.delete_worker(message.text)
+        session_service = SessionService(session)
+        open_session = await session_service.get_open_session(telegram_id)
 
-    if result:
-        text = f"Сотрудник {message.text} удалён из базы."
-    else:
-        text = f"Сотрудник {message.text} не найден в базе."
+    if open_session is None:
+        await message.answer("Открытая смена не найдена. Сначала используйте /чекин.")
+        return
 
-    await message.answer(text)
-    await send_worker_menu(message, state)
+    await state.update_data(session_id=open_session.id)
+    await state.set_state(CheckoutFSM.report_text)
+    await message.answer("Введите отчет по смене одним сообщением.")
 
 
-@router.message("/список", WorkerFSM.command)
-async def get_workers(message: types.Message, state: FSMContext):
+@router.message(CheckoutFSM.report_text)
+async def checkout_finish(message: types.Message, state: FSMContext, is_admin: bool):
+    if is_admin:
+        return
+
+    report_text = (message.text or "").strip()
+    if not report_text:
+        await message.answer("Отчет не должен быть пустым.")
+        return
+
+    data = await state.get_data()
+    session_id = data.get("session_id")
+    if not session_id:
+        await state.clear()
+        await message.answer("Не удалось определить рабочую сессию. Запустите /чекаут заново.")
+        return
+
+    telegram_id = message.from_user.id
     async with SessionLocal() as session:
-        worker_service = WorkerService(session)
-        workers = await worker_service.get_all_usernames()
+        report_service = ReportService(session, ai_service_mini)
+        session_service = SessionService(session)
 
-    text = "Список сотрудников:\n" + "\n".join(workers) if workers else "Список сотрудников пуст."
-    await message.answer(text)
-    await send_worker_menu(message, state)
+        report = await report_service.create_work_report(report_text, telegram_id, session_id)
+        work_session = await session_service.close_session(telegram_id)
+
+    await state.clear()
+
+    if report is None or work_session is None:
+        await message.answer("Не удалось завершить смену. Попробуйте еще раз.")
+        return
+
+    await message.answer("Отчет успешно создан.")
+    await send_start_menu(message, state, is_admin)
+
+
+@router.message("/комент")
+async def comment_start(message: types.Message, state: FSMContext, is_admin: bool):
+    if is_admin:
+        return
+
+    await state.set_state(CommentFSM.tag)
+    await message.answer("Выберите тип комментария.", reply_markup=comment_tag_kb)
+
+
+@router.message(CommentFSM.tag)
+async def comment_get_tag(message: types.Message, state: FSMContext):
+    raw_tag = (message.text or "").strip()
+    tag = COMMENT_TAG_LABELS.get(raw_tag)
+    if tag is None:
+        await message.answer("Выберите тип комментария кнопкой: Идея, Жалоба или Другое.")
+        return
+
+    await state.update_data(tag=tag.value)
+    await state.set_state(CommentFSM.text)
+    await message.answer("Введите текст комментария.")
+
+
+@router.message(CommentFSM.text)
+async def comment_save(message: types.Message, state: FSMContext, is_admin: bool):
+    if is_admin:
+        return
+
+    comment_text = (message.text or "").strip()
+    if not comment_text:
+        await message.answer("Комментарий не должен быть пустым.")
+        return
+
+    data = await state.get_data()
+    tag_value = data.get("tag")
+    if not tag_value:
+        await state.clear()
+        await message.answer("Не удалось определить тип комментария. Запустите /комент заново.")
+        return
+
+    async with SessionLocal() as session:
+        comment_service = CommentService(session)
+        comment = await comment_service.create(
+            telegram_id=message.from_user.id,
+            comment_text=comment_text,
+            tag=WorkerCommentTag(tag_value),
+        )
+
+    await state.clear()
+
+    if comment is None:
+        await message.answer("Не удалось сохранить комментарий.")
+        return
+
+    await message.answer("Комментарий сохранен.")
+    await send_start_menu(message, state, is_admin)

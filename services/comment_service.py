@@ -14,6 +14,8 @@ class CommentService:
 
     async def create(self, telegram_id: int, comment_text: str, tag: WorkerCommentTag) -> WorkerComment | None:
         user = await self.user_repository.get_by_telegram_id(telegram_id)
+        if user is None:
+            return None
         comment = await self.comment_repository.create(user.id, tag, comment_text, apptime())
         await self.session.commit()
         return comment
