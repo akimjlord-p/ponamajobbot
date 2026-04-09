@@ -2,6 +2,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.models import Product, ProductSynonym
 from repositories.operation_repository import OperationRepository
+from utils.logger import get_logger
+
+
+logger = get_logger(__name__)
 
 
 class ProductService:
@@ -11,16 +15,20 @@ class ProductService:
 
     async def get_all_product_names(self) -> list[str]:
         products = await self.operation_repository.get_products()
+        logger.debug("Products loaded: count=%s", len(products))
         return [product.name for product in products]
 
     async def get_product_by_name(self, product_name: str) -> Product | None:
         return await self.operation_repository.get_product_by_name(product_name)
 
     async def create_product(self, product_name: str) -> Product | None:
+        logger.info("Create product requested: name=%s", product_name)
         if await self.operation_repository.get_product_by_name(product_name):
+            logger.warning("Create product skipped: already exists name=%s", product_name)
             return None
         product = await self.operation_repository.create_product(product_name)
         await self.session.commit()
+        logger.info("Product created: id=%s name=%s", product.id, product_name)
         return product
 
     async def add_synonyms(self, product: Product, raw__synonyms: list[str]) -> list[ProductSynonym]:
@@ -49,4 +57,5 @@ class ProductService:
 
             synonyms.append(synonym)
         await self.session.commit()
+        logger.info("Product synonyms added: product_id=%s count=%s", product.id, len(synonyms))
         return synonyms

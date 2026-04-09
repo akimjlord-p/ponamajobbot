@@ -18,6 +18,10 @@ from services.operation_service import (
 from utils.apptime import apptime
 from utils.enums import ReportStatus, ReportResultType
 from services.ai_service.service import AIService
+from utils.logger import get_logger
+
+
+logger = get_logger(__name__)
 
 
 class ReportService:
@@ -118,9 +122,16 @@ class ReportService:
         telegram_id: int,
         session_id: int,
     ) -> WorkReport | None:
+        logger.info(
+            "Create work report requested: telegram_id=%s session_id=%s text_len=%s",
+            telegram_id,
+            session_id,
+            len(report_text),
+        )
 
         worker = await self.user_repository.get_by_telegram_id(telegram_id)
         if not worker:
+            logger.warning("Create work report failed: worker not found telegram_id=%s", telegram_id)
             return None
 
         parsing_context = await self._build_parsing_context()
@@ -129,12 +140,14 @@ class ReportService:
             parsing_context=parsing_context,
             text=report_text,
         )
+        logger.debug("Report parsing result: result_type=%s", parsing_result.report_result.value)
 
         if parsing_result.report_result == ReportResultType.NO_ACTIONABLE_DATA:
             report = await self._create_report_for_admin_review(session_id=session_id,
                                                                 worker_id=worker.id,
                                                                 report_text=report_text)
             await self.session.commit()
+            logger.info("Report created for admin review: report_id=%s worker_id=%s", report.id, worker.id)
             return report
 
         if parsing_result.report_result == ReportResultType.TEXT_ONLY:
@@ -143,6 +156,7 @@ class ReportService:
                                                               report_text=report_text
                                                               )
             await self.session.commit()
+            logger.info("Text-only report created: report_id=%s worker_id=%s", report.id, worker.id)
             return report
 
         normalized_operations = await self._normalize_operations(parsing_result.raw_operations)
@@ -153,6 +167,7 @@ class ReportService:
                 report_text=report_text
             )
             await self.session.commit()
+            logger.warning("Report created for admin review: normalization failed report_id=%s", report.id)
             return report
 
 
@@ -175,12 +190,19 @@ class ReportService:
                 result_type=ReportResultType.NO_ACTIONABLE_DATA,
             )
             await self.session.commit()
+            logger.warning("Report updated for admin review: no operations created report_id=%s", report.id)
             return report
 
         total_amount = self._count_total_amount(performed_operations)
 
         await self.report_repository.set_total_amount(report.id, total_amount)
         await self.session.commit()
+        logger.info(
+            "Report created with operations: report_id=%s operations=%s total_amount=%s",
+            report.id,
+            len(performed_operations),
+            total_amount,
+        )
         return report
 
     async def get_today_reports_with_operations(self) -> list[dict] | None:
@@ -191,6 +213,7 @@ class ReportService:
         )
 
         if not reports:
+            logger.debug("Today reports loaded: no reports date=%s", today)
             return None
 
         result: list[dict] = []
@@ -214,4 +237,5 @@ class ReportService:
                 }
             )
 
+        logger.debug("Today reports loaded: count=%s date=%s", len(result), today)
         return result

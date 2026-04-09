@@ -6,6 +6,10 @@ from db.models import WorkerPerformedOperation, Product, OperationType
 from repositories.operation_repository import OperationRepository
 from services.rate_service import RateService
 from utils.apptime import apptime
+from utils.logger import get_logger
+
+
+logger = get_logger(__name__)
 
 
 class NormalizedOperation:
@@ -31,14 +35,25 @@ class OperationService:
         session_id: int,
         report_id: int,
     ) -> WorkerPerformedOperation | None:
+        logger.info(
+            "Create performed operation requested: product_id=%s operation_type_id=%s quantity=%s worker_id=%s session_id=%s report_id=%s",
+            product_id,
+            operation_type_id,
+            quantity,
+            worker_id,
+            session_id,
+            report_id,
+        )
         product = await self.operation_repository.get_product_by_id(product_id)
         operation_type = await self.operation_repository.get_operation_type_by_id(operation_type_id)
 
         if not product or not operation_type:
+            logger.warning("Create performed operation failed: invalid product or operation type")
             return None
 
         rate = await self.rate_service.get_rate(product_id, operation_type_id)
         if rate is None:
+            logger.warning("Create performed operation failed: rate not found")
             return None
 
         quantity_decimal = Decimal(quantity)
@@ -59,6 +74,7 @@ class OperationService:
             quantity=quantity_decimal,
         )
 
+        logger.info("Performed operation created: id=%s", performed_operation.id)
         return performed_operation
 
 
@@ -75,7 +91,17 @@ class OperationNormalizerService:
             operation = await self.operation_repository.get_operation_type_by_synonym(operation_name)
 
         if not operation or not product:
+            logger.warning(
+                "Normalize operation failed: product='%s' operation='%s'",
+                product_name,
+                operation_name,
+            )
             return None
 
+        logger.debug(
+            "Normalize operation success: product_id=%s operation_id=%s",
+            product.id,
+            operation.id,
+        )
         return NormalizedOperation(product, operation, quantity)
 

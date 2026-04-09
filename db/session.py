@@ -8,7 +8,7 @@ DB_URL = "sqlite+aiosqlite:///database.db"
 
 engine = create_async_engine(
     DB_URL,
-    echo=True,  # показывает SQL запросы в консоли
+    echo=False,  # показывает SQL запросы в консоли
     connect_args={"timeout": 30},
 )
 

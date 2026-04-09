@@ -85,6 +85,23 @@ def test_apply_limit_does_not_change_small_limit_with_spaces():
     assert result == "SELECT * FROM users LIMIT 5"
 
 
+def test_normalize_enum_literals_in_sql_converts_python_values_to_db_literals(analytics):
+    query = (
+        "SELECT id FROM work_reports "
+        "WHERE status = 'parsed' AND result_type IN ('text_only', 'no_actionable_data')"
+    )
+
+    result = analytics._normalize_enum_literals_in_sql(query)
+
+    assert "status = 'PARSED'" in result
+    assert "result_type IN ('TEXT_ONLY', 'NO_ACTIONABLE_DATA')" in result
+
+
+def test_schema_description_contains_enum_db_values():
+    schema = AIAnalytics._get_db_schema_description()
+    assert "enum_db_values" in schema
+
+
 @pytest.mark.asyncio
 @patch("services.ai_service.analytics.Prompts.get_prompt_for_analytics_step")
 async def test_question_happy_path(mock_prompt, analytics, llm_fixture):

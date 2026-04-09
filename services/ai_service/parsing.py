@@ -2,6 +2,10 @@ from services.ai_service.llm_connection import LLMConnection
 from utils.enums import ReportResultType
 import json
 from .prompts import Prompts
+from utils.logger import get_logger
+
+
+logger = get_logger(__name__)
 
 
 class ParsedOperationRaw:
@@ -33,30 +37,37 @@ class AIReportParser:
         self.parsing_context = parsing_context
 
     async def parse(self, text: str) -> ParsingResult:
+        logger.info("AI report parsing started: text_len=%s", len(text))
         prompt = Prompts.get_report_parsing_prompt(text, self.parsing_context)
         response = await self.llm_connection.ask_text(prompt)
 
         if not response:
+            logger.warning("AI report parsing failed: no llm response")
             return ParsingResult(ReportResultType.NO_ACTIONABLE_DATA, reason='no llm response')
         try:
             json_data = self._extract_json(response)
-        except:
+        except Exception:
+            logger.warning("AI report parsing failed: invalid json")
             return ParsingResult(ReportResultType.NO_ACTIONABLE_DATA, reason='invalid_json')
 
         report_result_type_raw = json_data.get("report_result", None)
 
         if not report_result_type_raw:
+            logger.warning("AI report parsing failed: report_result missing")
             return ParsingResult(ReportResultType.NO_ACTIONABLE_DATA, reason='no key report_result')
 
         try:
             report_result_type = ReportResultType(report_result_type_raw)
-        except:
+        except Exception:
+            logger.warning("AI report parsing failed: invalid report_result=%s", report_result_type_raw)
             return ParsingResult(ReportResultType.NO_ACTIONABLE_DATA, reason='invalid_report_result')
 
         if report_result_type == ReportResultType.TEXT_ONLY:
+            logger.info("AI report parsing result: text_only")
             return ParsingResult(ReportResultType.TEXT_ONLY)
 
         elif report_result_type == ReportResultType.NO_ACTIONABLE_DATA:
+            logger.info("AI report parsing result: no_actionable_data")
             return ParsingResult(ReportResultType.NO_ACTIONABLE_DATA, reason='no_actionable_data')
 
         else:
@@ -64,6 +75,7 @@ class AIReportParser:
 
 
         if not operations_data:
+            logger.warning("AI report parsing failed: operations missing")
             return ParsingResult(ReportResultType.NO_ACTIONABLE_DATA, reason='no operations ')
         operations: list[ParsedOperationRaw] = []
         for operation in operations_data:
@@ -72,16 +84,19 @@ class AIReportParser:
             quantity = operation.get("quantity", None)
 
             if not product_name or not operation_type_name or not quantity:
+                logger.warning("AI report parsing failed: operation payload missing fields")
                 return ParsingResult(ReportResultType.NO_ACTIONABLE_DATA, reason='no product_name or operation_type_name or quantity')
 
             try:
                 quantity = int(quantity)
-            except:
+            except Exception:
+                logger.warning("AI report parsing failed: invalid quantity=%s", quantity)
                 return ParsingResult(ReportResultType.NO_ACTIONABLE_DATA, reason='invalid_quantity')
 
 
             operations.append(ParsedOperationRaw(product_name, operation_type_name, quantity))
 
+        logger.info("AI report parsing result: operations_created count=%s", len(operations))
         return ParsingResult(report_result_type, operations)
 
 
