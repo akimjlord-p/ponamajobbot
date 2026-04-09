@@ -1,4 +1,4 @@
-from aiogram import Router, types
+from aiogram import Router, types, F
 from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -41,22 +41,22 @@ async def send_product_menu(message: types.Message, state: FSMContext):
     await message.answer(text, reply_markup=product_chapter_kb, parse_mode=ParseMode.HTML)
 
 
-@router.message("/товары")
+@router.message(F.text.lower() == "/товары")
 async def product(message: types.Message, state: FSMContext, is_admin: bool):
     if not is_admin:
         return
     await send_product_menu(message, state)
 
 
-@router.message("/назад", ProductFSM.command)
-@router.message("/назад", AddProductFSM.name)
-@router.message("/назад", AddProductFSM.manual_synonyms)
+@router.message(F.text.lower() == "/назад", ProductFSM.command)
+@router.message(F.text.lower() == "/назад", AddProductFSM.name)
+@router.message(F.text.lower() == "/назад", AddProductFSM.manual_synonyms)
 async def back_to_start(message: types.Message, state: FSMContext, is_admin: bool):
     await state.clear()
     await send_start_menu(message, state, is_admin)
 
 
-@router.message("/добавить", ProductFSM.command)
+@router.message(F.text.lower() == "/добавить", ProductFSM.command)
 async def add_product(message: types.Message, state: FSMContext):
     await state.set_state(AddProductFSM.name)
     await message.answer("Введите название товара.")
@@ -133,7 +133,7 @@ async def get_manual_product_synonyms(message: types.Message, state: FSMContext)
     await message.answer(text, reply_markup=skip_synonym_kb)
 
 
-@router.message("/список", ProductFSM.command)
+@router.message(F.text.lower() == "/список", ProductFSM.command)
 async def get_products(message: types.Message, state: FSMContext):
     async with SessionLocal() as session:
         product_service = ProductService(session)

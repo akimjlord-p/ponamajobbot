@@ -1,4 +1,4 @@
-from aiogram import Router, types
+from aiogram import Router, types, F
 from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -41,22 +41,22 @@ async def send_operation_menu(message: types.Message, state: FSMContext):
     await message.answer(text, reply_markup=operation_chapter_kb, parse_mode=ParseMode.HTML)
 
 
-@router.message("/операции")
+@router.message(F.text.lower() == "/операции")
 async def operation(message: types.Message, state: FSMContext, is_admin: bool):
     if not is_admin:
         return
     await send_operation_menu(message, state)
 
 
-@router.message("/назад", OperationFSM.command)
-@router.message("/назад", AddOperationFSM.name)
-@router.message("/назад", AddOperationFSM.manual_synonyms)
+@router.message(F.text.lower() == "/назад", OperationFSM.command)
+@router.message(F.text.lower() == "/назад", AddOperationFSM.name)
+@router.message(F.text.lower() == "/назад", AddOperationFSM.manual_synonyms)
 async def back_to_start(message: types.Message, state: FSMContext, is_admin: bool):
     await state.clear()
     await send_start_menu(message, state, is_admin)
 
 
-@router.message("/добавить", OperationFSM.command)
+@router.message(F.text.lower() == "/добавить", OperationFSM.command)
 async def add_operation(message: types.Message, state: FSMContext):
     await state.set_state(AddOperationFSM.name)
     await message.answer("Введите название операции.")
@@ -139,7 +139,7 @@ async def get_manual_operation_synonyms(message: types.Message, state: FSMContex
     await message.answer(text, reply_markup=skip_synonym_kb)
 
 
-@router.message("/список", OperationFSM.command)
+@router.message(F.text.lower() == "/список", OperationFSM.command)
 async def get_operations(message: types.Message, state: FSMContext):
     async with SessionLocal() as session:
         operation_service = OperationTypeService(session)

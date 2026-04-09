@@ -5,7 +5,7 @@ main_admin_kb = ReplyKeyboardMarkup(
     keyboard=[
         [
             KeyboardButton(text="/воркер"),
-            KeyboardButton(text="/сс"),
+            KeyboardButton(text="/ии"),
             KeyboardButton(text="/товары"),
             KeyboardButton(text="/операции"),
             KeyboardButton(text="/тарифы"),

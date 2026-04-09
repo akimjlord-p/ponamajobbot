@@ -1,4 +1,4 @@
-from aiogram import Router, types
+from aiogram import Router, types, F
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
@@ -45,15 +45,15 @@ class CommentFSM(StatesGroup):
     text = State()
 
 
-@router.message("/назад", CheckoutFSM.report_text)
-@router.message("/назад", CommentFSM.tag)
-@router.message("/назад", CommentFSM.text)
+@router.message(F.text.lower() == "/назад", CheckoutFSM.report_text)
+@router.message(F.text.lower() == "/назад", CommentFSM.tag)
+@router.message(F.text.lower() == "/назад", CommentFSM.text)
 async def back_to_start(message: types.Message, state: FSMContext, is_admin: bool):
     await state.clear()
     await send_start_menu(message, state, is_admin)
 
 
-@router.message("/чекин")
+@router.message(F.text.lower() == "/чекин")
 async def checkin(message: types.Message, state: FSMContext, is_admin: bool):
     if is_admin:
         return
@@ -71,7 +71,7 @@ async def checkin(message: types.Message, state: FSMContext, is_admin: bool):
     await message.answer(f"Смена открыта: {work_session.started_at.strftime('%H:%M')}.")
 
 
-@router.message("/чекаут")
+@router.message(F.text.lower() == "/чекаут")
 async def checkout_start(message: types.Message, state: FSMContext, is_admin: bool):
     if is_admin:
         return
@@ -125,7 +125,7 @@ async def checkout_finish(message: types.Message, state: FSMContext, is_admin: b
     await send_start_menu(message, state, is_admin)
 
 
-@router.message("/комент")
+@router.message(F.text.lower() == "/комент")
 async def comment_start(message: types.Message, state: FSMContext, is_admin: bool):
     if is_admin:
         return

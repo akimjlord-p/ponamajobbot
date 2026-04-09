@@ -32,9 +32,9 @@ async def send_start_menu(message: types.Message, state: FSMContext, is_admin: b
         - /чекаут - закрыть смену, если она уже открыта
         - /комент - оставить дополнительный комментарий
         """
-    await message.answer(text, parse_mode=ParseMode.HTML, get_reply_markup=get_main_kb(is_admin))
+    await message.answer(text, parse_mode=ParseMode.HTML, reply_markup=get_main_kb(is_admin))
 
 
-@router.message("/start")
+@router.message(CommandStart())
 async def start(message: types.Message, command: CommandStart, state: FSMContext, is_admin: bool):
     await send_start_menu(message, state, is_admin)

@@ -1,6 +1,6 @@
 from decimal import Decimal, InvalidOperation
 
-from aiogram import Router, types
+from aiogram import Router, types, F
 from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -83,28 +83,28 @@ def parse_rate_value(raw_value: str) -> Decimal | None:
     return value
 
 
-@router.message("/тарифы")
+@router.message(F.text.lower() == "/тарифы")
 async def rates_chapter(message: types.Message, state: FSMContext, is_admin: bool):
     if not is_admin:
         return
     await send_rates_menu(message, state)
 
 
-@router.message("/назад", RatesFSM.command)
-@router.message("/назад", AddRateFSM.operation_name)
-@router.message("/назад", AddRateFSM.product_name)
-@router.message("/назад", AddRateFSM.rate_value)
-@router.message("/назад", UpdateRateFSM.operation_name)
-@router.message("/назад", UpdateRateFSM.product_name)
-@router.message("/назад", UpdateRateFSM.rate_value)
-@router.message("/назад", DeactivateRateFSM.operation_name)
-@router.message("/назад", DeactivateRateFSM.product_name)
+@router.message(F.text.lower() == "/назад", RatesFSM.command)
+@router.message(F.text.lower() == "/назад", AddRateFSM.operation_name)
+@router.message(F.text.lower() == "/назад", AddRateFSM.product_name)
+@router.message(F.text.lower() == "/назад", AddRateFSM.rate_value)
+@router.message(F.text.lower() == "/назад", UpdateRateFSM.operation_name)
+@router.message(F.text.lower() == "/назад", UpdateRateFSM.product_name)
+@router.message(F.text.lower() == "/назад", UpdateRateFSM.rate_value)
+@router.message(F.text.lower() == "/назад", DeactivateRateFSM.operation_name)
+@router.message(F.text.lower() == "/назад", DeactivateRateFSM.product_name)
 async def back_to_start(message: types.Message, state: FSMContext, is_admin: bool):
     await state.clear()
     await send_start_menu(message, state, is_admin)
 
 
-@router.message("/добавить", RatesFSM.command)
+@router.message(F.text.lower() == "/добавить", RatesFSM.command)
 async def add_rate(message: types.Message, state: FSMContext):
     async with SessionLocal() as session:
         has_operations = await send_operation_names(message, session)
@@ -189,7 +189,7 @@ async def add_rate_get_value(message: types.Message, state: FSMContext):
     await send_rates_menu(message, state)
 
 
-@router.message("/изменить", RatesFSM.command)
+@router.message(F.text.lower() == "/изменить", RatesFSM.command)
 async def update_rate(message: types.Message, state: FSMContext):
     async with SessionLocal() as session:
         has_operations = await send_operation_names(message, session)
@@ -264,7 +264,7 @@ async def update_rate_get_value(message: types.Message, state: FSMContext):
     await send_rates_menu(message, state)
 
 
-@router.message("/деактивировать", RatesFSM.command)
+@router.message(F.text.lower() == "/деактивировать", RatesFSM.command)
 async def deactivate_rate(message: types.Message, state: FSMContext):
     async with SessionLocal() as session:
         has_operations = await send_operation_names(message, session)
@@ -324,7 +324,7 @@ async def deactivate_rate_get_product(message: types.Message, state: FSMContext)
     await send_rates_menu(message, state)
 
 
-@router.message("/список", RatesFSM.command)
+@router.message(F.text.lower() == "/список", RatesFSM.command)
 async def get_rates(message: types.Message, state: FSMContext):
     async with SessionLocal() as session:
         rate_service = RateService(session)
