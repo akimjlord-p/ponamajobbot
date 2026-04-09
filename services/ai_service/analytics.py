@@ -1,5 +1,4 @@
 import json
-import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -11,7 +10,7 @@ from db.models import AdminRequestsContext
 from services.ai_service.llm_connection import LLMConnection
 from services.ai_service.prompts import Prompts
 from utils.logger import get_logger
-
+import re
 
 MAX_SQL_STEPS = 5
 MAX_SQL_LIMIT = 50
@@ -185,10 +184,13 @@ class AIAnalytics:
         normalized = " ".join(query.strip().lower().split())
         if not normalized:
             return False
+
         if not (normalized.startswith("select") or normalized.startswith("with")):
             return False
+
         if ";" in normalized.rstrip(";"):
             return False
+
         forbidden = [
             "insert",
             "update",
@@ -203,7 +205,9 @@ class AIAnalytics:
             "truncate",
             "replace",
         ]
-        return not any(word in normalized for word in forbidden)
+
+        tokens = re.findall(r"[a-z_]+", normalized)
+        return not any(word in tokens for word in forbidden)
 
     @staticmethod
     def _apply_limit(query: str, max_limit: int = MAX_SQL_LIMIT) -> str:
