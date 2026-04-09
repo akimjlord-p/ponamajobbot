@@ -1,22 +1,28 @@
 import logging
 from aiogram import Bot, Dispatcher
-from aiogram.types import Update
-from config import MAIN_ID, BOT_TOKEN
-from middlewares import AccessMiddleware, AdminMiddleware
+from config import BOT_TOKEN, TG_PROXY_URL
+from middlewares import UserExistsMiddleware, AdminMiddleware
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from handlers import admin, start, report, ai_mod
-from auto_mailings import send_weekly_reports, send_daily_reports
+from handlers import ai_chapter, product_chapter, admin_worker_chapter, operation_chapter, rates_chapter, start, worker_chapter
+from aiogram.client.session.aiohttp import AiohttpSession
+from db.session import create_db_and_tables
 
 
-bot = Bot(token=BOT_TOKEN)
+session = AiohttpSession(proxy=TG_PROXY_URL)
+bot = Bot(token=BOT_TOKEN, session=session)
 dp = Dispatcher()
 
-dp.message.outer_middleware(AccessMiddleware())
+dp.message.outer_middleware(UserExistsMiddleware())
 dp.message.outer_middleware(AdminMiddleware())
-dp.include_router(report.router)
+
+dp.include_router(ai_chapter.router)
+dp.include_router(worker_chapter.router)
+dp.include_router(admin_worker_chapter.router)
+dp.include_router(product_chapter.router)
+dp.include_router(operation_chapter.router)
+dp.include_router(rates_chapter.router)
 dp.include_router(start.router)
-dp.include_router(admin.router)
-dp.include_router(ai_mod.router)
+
 
 
 
@@ -26,7 +32,7 @@ dp.include_router(ai_mod.router)
 async def main() -> None:
     scheduler = AsyncIOScheduler(timezone="Europe/Moscow")
     logging.info("Add jobs: send_weekly_reports, send_daily_reports.")
-    scheduler.add_job(send_weekly_reports, trigger="cron", day_of_week="sun", hour=9, minute=20, kwargs={"bot": bot})
-    scheduler.add_job(send_daily_reports, trigger="cron", hour=21, minute=0, kwargs={"bot": bot})
+    #scheduler.add_job(send_daily_reports, trigger="cron", hour=21, minute=0, kwargs={"bot": bot})
     scheduler.start()
+    await create_db_and_tables()
     await dp.start_polling(bot)
