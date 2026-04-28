@@ -39,6 +39,8 @@ class AnalyticsStep:
 class AnalyticsResult:
     answer: str
     question: str
+    needs_external_data: bool = False
+    research_brief: str | None = None
 
 
 class AIAnalytics:
@@ -306,6 +308,17 @@ class AIAnalytics:
                 logger.info("Analytics completed with model final action at step=%s", step_number)
                 logger.info("Analytics final answer:\n%s", answer)
                 return AnalyticsResult(answer=answer, question=question)
+            if action == "need_external_data":
+                research_brief = str(model_decision.get("research_brief", "")).strip()
+                if not research_brief:
+                    research_brief = "Нужны внешние данные для ответа."
+                logger.info("Analytics external data requested at step=%s", step_number)
+                return AnalyticsResult(
+                    answer="Для точного ответа нужны внешние данные из интернета.",
+                    question=question,
+                    needs_external_data=True,
+                    research_brief=research_brief,
+                )
             if action != "query":
                 logger.warning("Analytics failed: invalid action=%s at step=%s", action, step_number)
                 return None

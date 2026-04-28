@@ -1,5 +1,7 @@
 from .llm_connection import LLMConnection
 from .service import AIService
+from .external_research import ExternalResearchService
+from config import ENABLE_ANALYTICS_WEB_SEARCH, ANALYTICS_WEB_SEARCH_MODEL
 from utils.proxy import http_client
 from utils.logger import get_logger
 
@@ -17,7 +19,17 @@ llm_smart = LLMConnection(
 )
 
 ai_service_mini = AIService(llm_mini)
-ai_service_smart = AIService(llm_smart)
+
+analytics_external_research_service = (
+    ExternalResearchService(model=ANALYTICS_WEB_SEARCH_MODEL)
+    if ENABLE_ANALYTICS_WEB_SEARCH
+    else None
+)
+
+ai_service_smart = AIService(
+    llm_smart,
+    external_research_service=analytics_external_research_service,
+)
 
 logger.info("AI service container initialized")
 
