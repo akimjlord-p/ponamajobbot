@@ -6,7 +6,9 @@ main_admin_kb = ReplyKeyboardMarkup(
         [
             KeyboardButton(text="/воркер"),
             KeyboardButton(text="/ии"),
-            KeyboardButton(text="/товары"),
+            KeyboardButton(text="/товары")
+        ],
+        [
             KeyboardButton(text="/операции"),
             KeyboardButton(text="/тарифы"),
         ]
@@ -29,7 +31,9 @@ worker_chapter_kb = ReplyKeyboardMarkup(
     keyboard=[
         [
             KeyboardButton(text="/список"),
-            KeyboardButton(text="/добавить"),
+            KeyboardButton(text="/добавить")
+        ],
+        [
             KeyboardButton(text="/удалить"),
             KeyboardButton(text="/назад"),
         ]
@@ -75,7 +79,9 @@ rates_chapter_kb = ReplyKeyboardMarkup(
         [
             KeyboardButton(text="/список"),
             KeyboardButton(text="/добавить"),
-            KeyboardButton(text="/изменить"),
+            KeyboardButton(text="/изменить")
+        ],
+        [
             KeyboardButton(text="/деактивировать"),
             KeyboardButton(text="/назад"),
         ]
