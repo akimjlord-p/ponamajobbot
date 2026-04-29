@@ -2,7 +2,6 @@ from typing import Any, Awaitable, Callable, Dict
 
 from aiogram import BaseMiddleware
 from aiogram.types import Message, TelegramObject
-from config import ADMINS
 from db.session import SessionLocal
 from services.worker_service import WorkerService
 
@@ -23,7 +22,7 @@ class UserExistsMiddleware(BaseMiddleware):
         async with SessionLocal() as session:
             worker_service = WorkerService(session)
 
-            if await worker_service.user_exists(telegram_id) or str(event.from_user.id) in ADMINS:
+            if await worker_service.user_exists(telegram_id):
                 return await handler(event, data)
 
             if username:
@@ -52,6 +51,6 @@ class AdminMiddleware(BaseMiddleware):
 
         async with SessionLocal() as session:
             worker_service = WorkerService(session)
-            data["is_admin"] = (await worker_service.is_admin(event.from_user.id) or str(event.from_user.id) in ADMINS)
+            data["is_admin"] = await worker_service.is_admin(event.from_user.id)
 
         return await handler(event, data)
