@@ -16,8 +16,8 @@ from utils.logger import get_logger
 MAX_ANALYTICS_STEPS = 5
 MAX_SQL_LIMIT = 50
 MAX_ROWS_FOR_MODEL = 30
-MAX_TEXT_RESULT_CHARS = 2500
-MAX_STEP_RESULT_CHARS = 3000
+MAX_TEXT_RESULT_CHARS = 1800
+MAX_STEP_RESULT_CHARS = 1800
 MAX_LOG_TEXT_PREVIEW = 4000
 
 
@@ -98,31 +98,22 @@ class AIAnalytics:
             return ""
 
         db_values = [str(value) for value in (column_type.enums or [])]
-        enum_class = getattr(column_type, "enum_class", None)
-        if enum_class is None:
-            return f" | enum_db_values={db_values}"
-
-        enum_pairs = [f"{member.name}<{member.value}>" for member in enum_class]
-        return (
-            f" | enum_db_values={db_values}"
-            f" | enum_python={enum_pairs}"
-            f" | IMPORTANT: use enum_db_values literals in SQL predicates"
-        )
+        return f" enum_db_values={db_values}"
 
     @classmethod
     def _get_db_schema_description(cls) -> str:
-        lines: list[str] = ["IMPORTANT ENUM RULE: for enum columns in WHERE/IN use ONLY enum_db_values.", ""]
+        lines: list[str] = ["Enum rule: use enum_db_values in SQL WHERE/IN."]
         for table_name, table in Base.metadata.tables.items():
-            lines.append(f"Table {table_name}:")
+            column_descriptions: list[str] = []
             for column in table.columns:
                 fk_targets = [str(fk.column) for fk in column.foreign_keys]
-                type_name = column.type.__class__.__name__
+                type_name = column.type.__class__.__name__.replace("Integer", "Int").replace("DateTime", "DT")
                 enum_description = cls._format_enum_column_description(column)
+                description = f"{column.name}:{type_name}{enum_description}"
                 if fk_targets:
-                    lines.append(f"- {column.name} ({type_name}) -> {', '.join(fk_targets)}{enum_description}")
-                else:
-                    lines.append(f"- {column.name} ({type_name}){enum_description}")
-            lines.append("")
+                    description = f"{description}->" + ",".join(fk_targets)
+                column_descriptions.append(description)
+            lines.append(f"{table_name}({'; '.join(column_descriptions)})")
         return "\n".join(lines)
 
     @staticmethod
@@ -162,7 +153,7 @@ class AIAnalytics:
 
         payload = [
             {
-                "step_number": step.step_number,
+                "n": step.step_number,
                 "action": step.action,
                 "comment": step.comment,
                 "query": step.query,
@@ -308,8 +299,8 @@ class AIAnalytics:
         prepared_query = self._normalize_enum_literals_in_sql(self._apply_limit(query))
         rows = await self.execute_read_only_query(prepared_query)
         result = {
-            "returned_rows": len(rows),
-            "shown_rows": min(len(rows), MAX_ROWS_FOR_MODEL),
+            "returned": len(rows),
+            "shown": min(len(rows), MAX_ROWS_FOR_MODEL),
             "rows": rows[:MAX_ROWS_FOR_MODEL],
         }
         return AnalyticsStep(
