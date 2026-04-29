@@ -53,33 +53,33 @@ async def send_ai_menu(message: types.Message, state: FSMContext):
     text = f"""
 Привет, <b>администратор {firstname}</b>.
 <i>Основные команды этого раздела:</i>
-- /вопрос - задать вопрос ИИ
-- /контекст - добавить общий контекст для запросов админа
-- /назад - вернуться в главное меню
+- /question - задать вопрос ИИ
+- /context - добавить общий контекст для запросов админа
+- /back - вернуться в главное меню
 """
     await state.set_state(AiFSM.command)
     await message.answer(text, reply_markup=ai_chapter_kb, parse_mode=ParseMode.HTML)
 
 
-@router.message(F.text.lower() == "/ии")
+@router.message(F.text.lower() == "/ai")
 async def ai_chapter(message: types.Message, state: FSMContext, is_admin: bool):
     if not is_admin:
         return
     await send_ai_menu(message, state)
 
 
-@router.message(F.text.lower() == "/назад", AiFSM.command)
-@router.message(F.text.lower() == "/назад", QuestionFSM.question)
-@router.message(F.text.lower() == "/назад", ContextFSM.context)
+@router.message(F.text.lower() == "/back", AiFSM.command)
+@router.message(F.text.lower() == "/back", QuestionFSM.question)
+@router.message(F.text.lower() == "/back", ContextFSM.context)
 async def back_to_start(message: types.Message, state: FSMContext, is_admin: bool):
     await state.clear()
     await send_start_menu(message, state, is_admin)
 
 
-@router.message(F.text.lower() == "/вопрос", AiFSM.command)
+@router.message(F.text.lower() == "/question", AiFSM.command)
 async def question(message: types.Message, state: FSMContext):
     await state.set_state(QuestionFSM.question)
-    await message.answer("Введите ваш вопрос. Для выхода в главное меню используйте /назад.")
+    await message.answer("Введите ваш вопрос. Для выхода в главное меню используйте /back.")
 
 
 @router.message(QuestionFSM.question)
@@ -100,13 +100,13 @@ async def get_question(message: types.Message, state: FSMContext):
         return
 
     await answer_long_message(message, result.answer)
-    await message.answer("Введите следующий вопрос или используйте /назад.")
+    await message.answer("Введите следующий вопрос или используйте /back.")
 
 
-@router.message(F.text.lower() == "/контекст", AiFSM.command)
+@router.message(F.text.lower() == "/context", AiFSM.command)
 async def add_context(message: types.Message, state: FSMContext):
     await state.set_state(ContextFSM.context)
-    await message.answer("Введите контекст для запросов админа. Для выхода в главное меню используйте /назад.")
+    await message.answer("Введите контекст для запросов админа. Для выхода в главное меню используйте /back.")
 
 
 @router.message(ContextFSM.context)

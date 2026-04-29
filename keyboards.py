@@ -4,13 +4,13 @@ from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
 main_admin_kb = ReplyKeyboardMarkup(
     keyboard=[
         [
-            KeyboardButton(text="/воркер"),
-            KeyboardButton(text="/ии"),
-            KeyboardButton(text="/товары")
+            KeyboardButton(text="/workers"),
+            KeyboardButton(text="/ai"),
+            KeyboardButton(text="/products")
         ],
         [
-            KeyboardButton(text="/операции"),
-            KeyboardButton(text="/тарифы"),
+            KeyboardButton(text="/operations"),
+            KeyboardButton(text="/rates"),
         ]
     ],
     resize_keyboard=True,
@@ -19,9 +19,9 @@ main_admin_kb = ReplyKeyboardMarkup(
 main_worker_kb = ReplyKeyboardMarkup(
     keyboard=[
         [
-            KeyboardButton(text="/чекин"),
-            KeyboardButton(text="/чекаут"),
-            KeyboardButton(text="/комент"),
+            KeyboardButton(text="/checkin"),
+            KeyboardButton(text="/checkout"),
+            KeyboardButton(text="/comment"),
         ]
     ],
     resize_keyboard=True,
@@ -30,12 +30,12 @@ main_worker_kb = ReplyKeyboardMarkup(
 worker_chapter_kb = ReplyKeyboardMarkup(
     keyboard=[
         [
-            KeyboardButton(text="/список"),
-            KeyboardButton(text="/добавить")
+            KeyboardButton(text="/list"),
+            KeyboardButton(text="/add")
         ],
         [
-            KeyboardButton(text="/удалить"),
-            KeyboardButton(text="/назад"),
+            KeyboardButton(text="/delete"),
+            KeyboardButton(text="/back"),
         ]
     ],
     resize_keyboard=True,
@@ -44,9 +44,9 @@ worker_chapter_kb = ReplyKeyboardMarkup(
 product_chapter_kb = ReplyKeyboardMarkup(
     keyboard=[
         [
-            KeyboardButton(text="/список"),
-            KeyboardButton(text="/добавить"),
-            KeyboardButton(text="/назад"),
+            KeyboardButton(text="/list"),
+            KeyboardButton(text="/add"),
+            KeyboardButton(text="/back"),
         ]
     ],
     resize_keyboard=True,
@@ -55,9 +55,9 @@ product_chapter_kb = ReplyKeyboardMarkup(
 operation_chapter_kb = ReplyKeyboardMarkup(
     keyboard=[
         [
-            KeyboardButton(text="/список"),
-            KeyboardButton(text="/добавить"),
-            KeyboardButton(text="/назад"),
+            KeyboardButton(text="/list"),
+            KeyboardButton(text="/add"),
+            KeyboardButton(text="/back"),
         ]
     ],
     resize_keyboard=True,
@@ -66,9 +66,9 @@ operation_chapter_kb = ReplyKeyboardMarkup(
 ai_chapter_kb = ReplyKeyboardMarkup(
     keyboard=[
         [
-            KeyboardButton(text="/вопрос"),
-            KeyboardButton(text="/контекст"),
-            KeyboardButton(text="/назад"),
+            KeyboardButton(text="/question"),
+            KeyboardButton(text="/context"),
+            KeyboardButton(text="/back"),
         ]
     ],
     resize_keyboard=True,
@@ -77,13 +77,13 @@ ai_chapter_kb = ReplyKeyboardMarkup(
 rates_chapter_kb = ReplyKeyboardMarkup(
     keyboard=[
         [
-            KeyboardButton(text="/список"),
-            KeyboardButton(text="/добавить"),
-            KeyboardButton(text="/изменить")
+            KeyboardButton(text="/list"),
+            KeyboardButton(text="/add"),
+            KeyboardButton(text="/update")
         ],
         [
-            KeyboardButton(text="/деактивировать"),
-            KeyboardButton(text="/назад"),
+            KeyboardButton(text="/deactivate"),
+            KeyboardButton(text="/back"),
         ]
     ],
     resize_keyboard=True,

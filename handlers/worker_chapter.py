@@ -18,6 +18,9 @@ COMMENT_TAG_LABELS: dict[str, WorkerCommentTag] = {
     "Идея": WorkerCommentTag.IDEA,
     "Жалоба": WorkerCommentTag.COMPLAINT,
     "Другое": WorkerCommentTag.OTHER,
+    "Idea": WorkerCommentTag.IDEA,
+    "Complaint": WorkerCommentTag.COMPLAINT,
+    "Other": WorkerCommentTag.OTHER,
     "idea": WorkerCommentTag.IDEA,
     "complaint": WorkerCommentTag.COMPLAINT,
     "other": WorkerCommentTag.OTHER,
@@ -26,11 +29,11 @@ COMMENT_TAG_LABELS: dict[str, WorkerCommentTag] = {
 comment_tag_kb = ReplyKeyboardMarkup(
     keyboard=[
         [
-            KeyboardButton(text="Идея"),
-            KeyboardButton(text="Жалоба"),
-            KeyboardButton(text="Другое"),
+            KeyboardButton(text="Idea"),
+            KeyboardButton(text="Complaint"),
+            KeyboardButton(text="Other"),
         ],
-        [KeyboardButton(text="/назад")],
+        [KeyboardButton(text="/back")],
     ],
     resize_keyboard=True,
 )
@@ -45,15 +48,15 @@ class CommentFSM(StatesGroup):
     text = State()
 
 
-@router.message(F.text.lower() == "/назад", CheckoutFSM.report_text)
-@router.message(F.text.lower() == "/назад", CommentFSM.tag)
-@router.message(F.text.lower() == "/назад", CommentFSM.text)
+@router.message(F.text.lower() == "/back", CheckoutFSM.report_text)
+@router.message(F.text.lower() == "/back", CommentFSM.tag)
+@router.message(F.text.lower() == "/back", CommentFSM.text)
 async def back_to_start(message: types.Message, state: FSMContext, is_admin: bool):
     await state.clear()
     await send_start_menu(message, state, is_admin)
 
 
-@router.message(F.text.lower() == "/чекин")
+@router.message(F.text.lower() == "/checkin")
 async def checkin(message: types.Message, state: FSMContext, is_admin: bool):
     if is_admin:
         return
@@ -71,7 +74,7 @@ async def checkin(message: types.Message, state: FSMContext, is_admin: bool):
     await message.answer(f"Смена открыта: {work_session.started_at.strftime('%H:%M')}.")
 
 
-@router.message(F.text.lower() == "/чекаут")
+@router.message(F.text.lower() == "/checkout")
 async def checkout_start(message: types.Message, state: FSMContext, is_admin: bool):
     if is_admin:
         return
@@ -82,7 +85,7 @@ async def checkout_start(message: types.Message, state: FSMContext, is_admin: bo
         open_session = await session_service.get_open_session(telegram_id)
 
     if open_session is None:
-        await message.answer("Открытая смена не найдена. Сначала используйте /чекин.")
+        await message.answer("Открытая смена не найдена. Сначала используйте /checkin.")
         return
 
     await state.update_data(session_id=open_session.id)
@@ -104,7 +107,7 @@ async def checkout_finish(message: types.Message, state: FSMContext, is_admin: b
     session_id = data.get("session_id")
     if not session_id:
         await state.clear()
-        await message.answer("Не удалось определить рабочую сессию. Запустите /чекаут заново.")
+        await message.answer("Не удалось определить рабочую сессию. Запустите /checkout заново.")
         return
 
     telegram_id = message.from_user.id
@@ -125,7 +128,7 @@ async def checkout_finish(message: types.Message, state: FSMContext, is_admin: b
     await send_start_menu(message, state, is_admin)
 
 
-@router.message(F.text.lower() == "/комент")
+@router.message(F.text.lower() == "/comment")
 async def comment_start(message: types.Message, state: FSMContext, is_admin: bool):
     if is_admin:
         return
@@ -139,7 +142,7 @@ async def comment_get_tag(message: types.Message, state: FSMContext):
     raw_tag = (message.text or "").strip()
     tag = COMMENT_TAG_LABELS.get(raw_tag)
     if tag is None:
-        await message.answer("Выберите тип комментария кнопкой: Идея, Жалоба или Другое.")
+        await message.answer("Выберите тип комментария кнопкой: Idea, Complaint или Other.")
         return
 
     await state.update_data(tag=tag.value)
@@ -161,7 +164,7 @@ async def comment_save(message: types.Message, state: FSMContext, is_admin: bool
     tag_value = data.get("tag")
     if not tag_value:
         await state.clear()
-        await message.answer("Не удалось определить тип комментария. Запустите /комент заново.")
+        await message.answer("Не удалось определить тип комментария. Запустите /comment заново.")
         return
 
     async with SessionLocal() as session:

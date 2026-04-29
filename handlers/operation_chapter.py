@@ -12,7 +12,7 @@ from services.operation_type_service import OperationTypeService
 
 router = Router()
 
-SKIP_SYNONYM_TEXT = "Пропустить"
+SKIP_SYNONYM_TEXT = "Skip"
 skip_synonym_kb = ReplyKeyboardMarkup(
     keyboard=[[KeyboardButton(text=SKIP_SYNONYM_TEXT)]],
     resize_keyboard=True,
@@ -33,30 +33,30 @@ async def send_operation_menu(message: types.Message, state: FSMContext):
     text = f"""
 Привет, <b>администратор {firstname}</b>.
 <i>Основные команды этого раздела:</i>
-- /список - список операций
-- /добавить - добавить операцию
-- /назад - вернуться в главное меню
+- /list - список операций
+- /add - добавить операцию
+- /back - вернуться в главное меню
 """
     await state.set_state(OperationFSM.command)
     await message.answer(text, reply_markup=operation_chapter_kb, parse_mode=ParseMode.HTML)
 
 
-@router.message(F.text.lower() == "/операции")
+@router.message(F.text.lower() == "/operations")
 async def operation(message: types.Message, state: FSMContext, is_admin: bool):
     if not is_admin:
         return
     await send_operation_menu(message, state)
 
 
-@router.message(F.text.lower() == "/назад", OperationFSM.command)
-@router.message(F.text.lower() == "/назад", AddOperationFSM.name)
-@router.message(F.text.lower() == "/назад", AddOperationFSM.manual_synonyms)
+@router.message(F.text.lower() == "/back", OperationFSM.command)
+@router.message(F.text.lower() == "/back", AddOperationFSM.name)
+@router.message(F.text.lower() == "/back", AddOperationFSM.manual_synonyms)
 async def back_to_start(message: types.Message, state: FSMContext, is_admin: bool):
     await state.clear()
     await send_start_menu(message, state, is_admin)
 
 
-@router.message(F.text.lower() == "/добавить", OperationFSM.command)
+@router.message(F.text.lower() == "/add", OperationFSM.command)
 async def add_operation(message: types.Message, state: FSMContext):
     await state.set_state(AddOperationFSM.name)
     await message.answer("Введите название операции.")
@@ -89,13 +89,13 @@ async def get_operation_name_to_add(message: types.Message, state: FSMContext):
         text = (
             f"Операция {operation_name} зарегистрирована в базе.\n"
             f"ИИ предложил и добавил синонимы:\n{synonyms_text}\n\n"
-            "Можете отправить дополнительный синоним сообщением или нажать кнопку 'Пропустить'."
+            "Можете отправить дополнительный синоним сообщением или нажать кнопку 'Skip'."
         )
     else:
         text = (
             f"Операция {operation_name} зарегистрирована в базе.\n"
             "ИИ не предложил новых синонимов.\n\n"
-            "Можете отправить дополнительный синоним сообщением или нажать кнопку 'Пропустить'."
+            "Можете отправить дополнительный синоним сообщением или нажать кнопку 'Skip'."
         )
 
     await message.answer(text, reply_markup=skip_synonym_kb)
@@ -128,18 +128,18 @@ async def get_manual_operation_synonyms(message: types.Message, state: FSMContex
     if added_synonyms:
         text = (
             f"Для операции {operation_name} добавлен синоним: {added_synonyms[0].synonym}\n"
-            "Можете отправить ещё один дополнительный синоним или нажать 'Пропустить'."
+            "Можете отправить ещё один дополнительный синоним или нажать 'Skip'."
         )
     else:
         text = (
             f"Синоним '{synonym}' не был добавлен для операции {operation_name}.\n"
-            "Возможно, он уже существует. Можете отправить другой синоним или нажать 'Пропустить'."
+            "Возможно, он уже существует. Можете отправить другой синоним или нажать 'Skip'."
         )
 
     await message.answer(text, reply_markup=skip_synonym_kb)
 
 
-@router.message(F.text.lower() == "/список", OperationFSM.command)
+@router.message(F.text.lower() == "/list", OperationFSM.command)
 async def get_operations(message: types.Message, state: FSMContext):
     async with SessionLocal() as session:
         operation_service = OperationTypeService(session)

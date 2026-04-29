@@ -42,10 +42,10 @@ async def send_rates_menu(message: types.Message, state: FSMContext):
     text = f"""
 Привет, <b>администратор {firstname}</b>.
 <i>Основные команды этого раздела:</i>
-- /список - список тарифов
-- /добавить - добавить тариф
-- /изменить - изменить тариф
-- /деактивировать - деактивировать тариф
+- /list - список тарифов
+- /add - добавить тариф
+- /update - изменить тариф
+- /deactivate - деактивировать тариф
 """
     await state.set_state(RatesFSM.command)
     await message.answer(text, reply_markup=rates_chapter_kb, parse_mode=ParseMode.HTML)
@@ -83,28 +83,28 @@ def parse_rate_value(raw_value: str) -> Decimal | None:
     return value
 
 
-@router.message(F.text.lower() == "/тарифы")
+@router.message(F.text.lower() == "/rates")
 async def rates_chapter(message: types.Message, state: FSMContext, is_admin: bool):
     if not is_admin:
         return
     await send_rates_menu(message, state)
 
 
-@router.message(F.text.lower() == "/назад", RatesFSM.command)
-@router.message(F.text.lower() == "/назад", AddRateFSM.operation_name)
-@router.message(F.text.lower() == "/назад", AddRateFSM.product_name)
-@router.message(F.text.lower() == "/назад", AddRateFSM.rate_value)
-@router.message(F.text.lower() == "/назад", UpdateRateFSM.operation_name)
-@router.message(F.text.lower() == "/назад", UpdateRateFSM.product_name)
-@router.message(F.text.lower() == "/назад", UpdateRateFSM.rate_value)
-@router.message(F.text.lower() == "/назад", DeactivateRateFSM.operation_name)
-@router.message(F.text.lower() == "/назад", DeactivateRateFSM.product_name)
+@router.message(F.text.lower() == "/back", RatesFSM.command)
+@router.message(F.text.lower() == "/back", AddRateFSM.operation_name)
+@router.message(F.text.lower() == "/back", AddRateFSM.product_name)
+@router.message(F.text.lower() == "/back", AddRateFSM.rate_value)
+@router.message(F.text.lower() == "/back", UpdateRateFSM.operation_name)
+@router.message(F.text.lower() == "/back", UpdateRateFSM.product_name)
+@router.message(F.text.lower() == "/back", UpdateRateFSM.rate_value)
+@router.message(F.text.lower() == "/back", DeactivateRateFSM.operation_name)
+@router.message(F.text.lower() == "/back", DeactivateRateFSM.product_name)
 async def back_to_start(message: types.Message, state: FSMContext, is_admin: bool):
     await state.clear()
     await send_start_menu(message, state, is_admin)
 
 
-@router.message(F.text.lower() == "/добавить", RatesFSM.command)
+@router.message(F.text.lower() == "/add", RatesFSM.command)
 async def add_rate(message: types.Message, state: FSMContext):
     async with SessionLocal() as session:
         has_operations = await send_operation_names(message, session)
@@ -189,7 +189,7 @@ async def add_rate_get_value(message: types.Message, state: FSMContext):
     await send_rates_menu(message, state)
 
 
-@router.message(F.text.lower() == "/изменить", RatesFSM.command)
+@router.message(F.text.lower() == "/update", RatesFSM.command)
 async def update_rate(message: types.Message, state: FSMContext):
     async with SessionLocal() as session:
         has_operations = await send_operation_names(message, session)
@@ -264,7 +264,7 @@ async def update_rate_get_value(message: types.Message, state: FSMContext):
     await send_rates_menu(message, state)
 
 
-@router.message(F.text.lower() == "/деактивировать", RatesFSM.command)
+@router.message(F.text.lower() == "/deactivate", RatesFSM.command)
 async def deactivate_rate(message: types.Message, state: FSMContext):
     async with SessionLocal() as session:
         has_operations = await send_operation_names(message, session)
@@ -324,7 +324,7 @@ async def deactivate_rate_get_product(message: types.Message, state: FSMContext)
     await send_rates_menu(message, state)
 
 
-@router.message(F.text.lower() == "/список", RatesFSM.command)
+@router.message(F.text.lower() == "/list", RatesFSM.command)
 async def get_rates(message: types.Message, state: FSMContext):
     async with SessionLocal() as session:
         rate_service = RateService(session)

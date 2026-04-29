@@ -28,31 +28,31 @@ async def send_worker_menu(message: types.Message, state: FSMContext):
     text = f"""
 Привет, <b>администратор {firstname}</b>.
 <i>Основные команды этого раздела:</i>
-- /список - список сотрудников
-- /добавить - добавить сотрудника
-- /удалить - удалить сотрудника
-- /назад - вернуться в главное меню
+- /list - список сотрудников
+- /add - добавить сотрудника
+- /delete - удалить сотрудника
+- /back - вернуться в главное меню
 """
     await state.set_state(WorkerFSM.command)
     await message.answer(text, reply_markup=worker_chapter_kb, parse_mode=ParseMode.HTML)
 
 
-@router.message(F.text.lower() == "/воркер")
+@router.message(F.text.lower() == "/workers")
 async def worker(message: types.Message, state: FSMContext, is_admin: bool):
     if not is_admin:
         return
     await send_worker_menu(message, state)
 
 
-@router.message(F.text.lower() == "/назад", WorkerFSM.command)
-@router.message(F.text.lower() == "/назад", AddWorkerFSM.username)
-@router.message(F.text.lower() == "/назад", DeleteWorkerFSM.username)
+@router.message(F.text.lower() == "/back", WorkerFSM.command)
+@router.message(F.text.lower() == "/back", AddWorkerFSM.username)
+@router.message(F.text.lower() == "/back", DeleteWorkerFSM.username)
 async def back_to_start(message: types.Message, state: FSMContext, is_admin: bool):
     await state.clear()
     await send_start_menu(message, state, is_admin)
 
 
-@router.message(F.text.lower() == "/добавить", WorkerFSM.command)
+@router.message(F.text.lower() == "/add", WorkerFSM.command)
 async def add_worker(message: types.Message, state: FSMContext):
     await state.set_state(AddWorkerFSM.username)
     await message.answer("Введите юзернейм сотрудника. Пример: @username")
@@ -68,7 +68,7 @@ async def get_worker_username_to_add(message: types.Message, state: FSMContext):
     await send_worker_menu(message, state)
 
 
-@router.message(F.text.lower() == "/удалить", WorkerFSM.command)
+@router.message(F.text.lower() == "/delete", WorkerFSM.command)
 async def delete_worker(message: types.Message, state: FSMContext):
     await state.set_state(DeleteWorkerFSM.username)
     await message.answer("Введите юзернейм сотрудника. Пример: @username")
@@ -89,7 +89,7 @@ async def get_worker_username_to_delete(message: types.Message, state: FSMContex
     await send_worker_menu(message, state)
 
 
-@router.message(F.text.lower() == "/список", WorkerFSM.command)
+@router.message(F.text.lower() == "/list", WorkerFSM.command)
 async def get_workers(message: types.Message, state: FSMContext):
     async with SessionLocal() as session:
         worker_service = WorkerService(session)
