@@ -1,4 +1,5 @@
 import json
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -10,11 +11,13 @@ from db.models import AdminRequestsContext
 from services.ai_service.llm_connection import LLMConnection
 from services.ai_service.prompts import Prompts
 from utils.logger import get_logger
-import re
 
-MAX_SQL_STEPS = 8
+
+MAX_ANALYTICS_STEPS = 5
 MAX_SQL_LIMIT = 50
 MAX_ROWS_FOR_MODEL = 30
+MAX_TEXT_RESULT_CHARS = 2500
+MAX_STEP_RESULT_CHARS = 3000
 MAX_LOG_TEXT_PREVIEW = 4000
 
 
@@ -30,17 +33,16 @@ def _preview(text: str, limit: int = MAX_LOG_TEXT_PREVIEW) -> str:
 @dataclass
 class AnalyticsStep:
     step_number: int
-    sql: str
+    action: str
     comment: str
-    rows: list[dict[str, Any]]
+    query: str
+    result: Any
 
 
 @dataclass
 class AnalyticsResult:
     answer: str
     question: str
-    needs_external_data: bool = False
-    research_brief: str | None = None
 
 
 class AIAnalytics:
@@ -97,7 +99,6 @@ class AIAnalytics:
 
         db_values = [str(value) for value in (column_type.enums or [])]
         enum_class = getattr(column_type, "enum_class", None)
-
         if enum_class is None:
             return f" | enum_db_values={db_values}"
 
@@ -110,11 +111,7 @@ class AIAnalytics:
 
     @classmethod
     def _get_db_schema_description(cls) -> str:
-        lines: list[str] = []
-        lines.append(
-            "IMPORTANT ENUM RULE: for enum columns in WHERE/IN use ONLY enum_db_values."
-        )
-        lines.append("")
+        lines: list[str] = ["IMPORTANT ENUM RULE: for enum columns in WHERE/IN use ONLY enum_db_values.", ""]
         for table_name, table in Base.metadata.tables.items():
             lines.append(f"Table {table_name}:")
             for column in table.columns:
@@ -122,54 +119,11 @@ class AIAnalytics:
                 type_name = column.type.__class__.__name__
                 enum_description = cls._format_enum_column_description(column)
                 if fk_targets:
-                    lines.append(
-                        f"- {column.name} ({type_name}) -> {', '.join(fk_targets)}{enum_description}"
-                    )
+                    lines.append(f"- {column.name} ({type_name}) -> {', '.join(fk_targets)}{enum_description}")
                 else:
                     lines.append(f"- {column.name} ({type_name}){enum_description}")
             lines.append("")
         return "\n".join(lines)
-
-    def _normalize_enum_literals_in_sql(self, query: str) -> str:
-        if not self.enum_literal_map or not self.enum_column_names:
-            return query
-
-        column_pattern = "|".join(
-            sorted((re.escape(name) for name in self.enum_column_names), key=len, reverse=True)
-        )
-
-        def _normalize_literal(literal: str) -> str:
-            normalized_literal = self.enum_literal_map.get(literal.casefold())
-            if not normalized_literal or normalized_literal == literal:
-                return f"'{literal}'"
-            logger.info(
-                "Analytics enum literal normalized: '%s' -> '%s'",
-                literal,
-                normalized_literal,
-            )
-            return f"'{normalized_literal}'"
-
-        in_pattern = re.compile(
-            rf"(?i)(\b(?:\w+\.)?(?:{column_pattern})\b\s+(?:not\s+)?in\s*\()([^)]+)(\))"
-        )
-
-        def _replace_in(match: re.Match[str]) -> str:
-            prefix, body, suffix = match.groups()
-            new_body = re.sub(r"'([^']*)'", lambda m: _normalize_literal(m.group(1)), body)
-            return f"{prefix}{new_body}{suffix}"
-
-        query = in_pattern.sub(_replace_in, query)
-
-        eq_pattern = re.compile(
-            rf"(?i)(\b(?:\w+\.)?(?:{column_pattern})\b\s*(?:=|!=|<>)\s*)'([^']*)'"
-        )
-
-        def _replace_eq(match: re.Match[str]) -> str:
-            prefix = match.group(1)
-            replaced_literal = _normalize_literal(match.group(2))
-            return f"{prefix}{replaced_literal}"
-
-        return eq_pattern.sub(_replace_eq, query)
 
     @staticmethod
     def _format_request_contexts(contexts: list[AdminRequestsContext]) -> str:
@@ -182,61 +136,41 @@ class AIAnalytics:
         ) or "Нет дополнительного контекста."
 
     @staticmethod
-    def _is_safe_sql(query: str) -> bool:
-        normalized = " ".join(query.strip().lower().split())
-        if not normalized:
-            return False
+    def _format_steps_for_model(steps: list[AnalyticsStep]) -> str:
+        def _compact_result(result: Any) -> Any:
+            if isinstance(result, str):
+                if len(result) <= MAX_STEP_RESULT_CHARS:
+                    return result
+                return {
+                    "truncated": True,
+                    "chars": len(result),
+                    "preview": result[:MAX_STEP_RESULT_CHARS],
+                }
 
-        if not (normalized.startswith("select") or normalized.startswith("with")):
-            return False
+            try:
+                serialized = json.dumps(result, ensure_ascii=False, default=str)
+            except TypeError:
+                serialized = str(result)
 
-        if ";" in normalized.rstrip(";"):
-            return False
+            if len(serialized) <= MAX_STEP_RESULT_CHARS:
+                return result
+            return {
+                "truncated": True,
+                "chars": len(serialized),
+                "preview": serialized[:MAX_STEP_RESULT_CHARS],
+            }
 
-        forbidden = [
-            "insert",
-            "update",
-            "delete",
-            "drop",
-            "alter",
-            "create",
-            "attach",
-            "detach",
-            "pragma",
-            "vacuum",
-            "truncate",
-            "replace",
+        payload = [
+            {
+                "step_number": step.step_number,
+                "action": step.action,
+                "comment": step.comment,
+                "query": step.query,
+                "result": _compact_result(step.result),
+            }
+            for step in steps
         ]
-
-        tokens = re.findall(r"[a-z_]+", normalized)
-        return not any(word in tokens for word in forbidden)
-
-    @staticmethod
-    def _apply_limit(query: str, max_limit: int = MAX_SQL_LIMIT) -> str:
-        cleaned = query.strip().rstrip(";")
-        match = re.search(r"\blimit\s+(\d+)\b", cleaned, flags=re.IGNORECASE)
-        if match:
-            current_limit = int(match.group(1))
-            if current_limit > max_limit:
-                cleaned = re.sub(
-                    r"\blimit\s+\d+\b",
-                    f"LIMIT {max_limit}",
-                    cleaned,
-                    flags=re.IGNORECASE,
-                )
-            return cleaned
-        return f"{cleaned}\nLIMIT {max_limit}"
-
-    async def execute_read_only_query(self, query: str) -> list[dict[str, Any]]:
-        logger.info("Executing analytics SQL query:\n%s", query)
-        result = await self.session.execute(text(query))
-        rows = result.mappings().all()
-        logger.info("Analytics SQL executed: rows=%s", len(rows))
-        return [dict(row) for row in rows]
-
-    @staticmethod
-    def _rows_for_model(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        return rows[:MAX_ROWS_FOR_MODEL]
+        return json.dumps(payload, ensure_ascii=False)
 
     @staticmethod
     def _extract_json(raw_text: str) -> dict[str, Any] | None:
@@ -253,129 +187,233 @@ class AIAnalytics:
         except Exception:
             return None
 
-    async def question(
+    @staticmethod
+    def _is_safe_sql(query: str) -> bool:
+        normalized = " ".join(query.strip().lower().split())
+        if not normalized:
+            return False
+        if not (normalized.startswith("select") or normalized.startswith("with")):
+            return False
+        if ";" in normalized.rstrip(";"):
+            return False
+
+        forbidden = {
+            "insert",
+            "update",
+            "delete",
+            "drop",
+            "alter",
+            "create",
+            "attach",
+            "detach",
+            "pragma",
+            "vacuum",
+            "truncate",
+            "replace",
+        }
+        tokens = re.findall(r"[a-z_]+", normalized)
+        return not any(word in tokens for word in forbidden)
+
+    @staticmethod
+    def _apply_limit(query: str, max_limit: int = MAX_SQL_LIMIT) -> str:
+        cleaned = query.strip().rstrip(";")
+        match = re.search(r"\blimit\s+(\d+)\b", cleaned, flags=re.IGNORECASE)
+        if match:
+            current_limit = int(match.group(1))
+            if current_limit > max_limit:
+                return re.sub(r"\blimit\s+\d+\b", f"LIMIT {max_limit}", cleaned, flags=re.IGNORECASE)
+            return cleaned
+        return f"{cleaned}\nLIMIT {max_limit}"
+
+    def _normalize_enum_literals_in_sql(self, query: str) -> str:
+        if not self.enum_literal_map or not self.enum_column_names:
+            return query
+
+        column_pattern = "|".join(
+            sorted((re.escape(name) for name in self.enum_column_names), key=len, reverse=True)
+        )
+
+        def _normalize_literal(literal: str) -> str:
+            normalized_literal = self.enum_literal_map.get(literal.casefold())
+            if not normalized_literal or normalized_literal == literal:
+                return f"'{literal}'"
+            logger.info("Analytics enum literal normalized: '%s' -> '%s'", literal, normalized_literal)
+            return f"'{normalized_literal}'"
+
+        in_pattern = re.compile(
+            rf"(?i)(\b(?:\w+\.)?(?:{column_pattern})\b\s+(?:not\s+)?in\s*\()([^)]+)(\))"
+        )
+
+        def _replace_in_literals(match: re.Match) -> str:
+            new_body = re.sub(
+                r"'([^']*)'",
+                lambda literal_match: _normalize_literal(literal_match.group(1)),
+                match.group(2),
+            )
+            return f"{match.group(1)}{new_body}{match.group(3)}"
+
+        query = in_pattern.sub(_replace_in_literals, query)
+
+        eq_pattern = re.compile(
+            rf"(?i)(\b(?:\w+\.)?(?:{column_pattern})\b\s*(?:=|!=|<>)\s*)'([^']*)'"
+        )
+        return eq_pattern.sub(lambda match: f"{match.group(1)}{_normalize_literal(match.group(2))}", query)
+
+    async def _ask_next_action(
         self,
         question: str,
-        context: list[AdminRequestsContext],
+        schema: str,
+        request_context: str,
+        steps: list[AnalyticsStep],
+    ) -> dict[str, Any] | None:
+        prompt = Prompts.get_prompt_for_analytics_step(
+            question=question,
+            schema=schema,
+            request_context=request_context,
+            previous_steps=self._format_steps_for_model(steps),
+            max_limit=MAX_SQL_LIMIT,
+        )
+        logger.info("Analytics decision prompt built: chars=%s\n%s", len(prompt), _preview(prompt))
+
+        raw_response = await self.connection.ask_text(prompt)
+        if not raw_response:
+            logger.warning("Analytics failed: empty decision response")
+            return None
+        logger.info("Analytics decision raw response: chars=%s\n%s", len(raw_response), _preview(raw_response))
+
+        decision = self._extract_json(raw_response)
+        if not decision:
+            logger.warning("Analytics failed: invalid decision JSON")
+            return None
+        logger.info("Analytics decision JSON payload=%s", _preview(json.dumps(decision, ensure_ascii=False)))
+        return decision
+
+    async def execute_read_only_query(self, query: str) -> list[dict[str, Any]]:
+        logger.info("Executing analytics SQL query:\n%s", query)
+        result = await self.session.execute(text(query))
+        rows = result.mappings().all()
+        logger.info("Analytics SQL executed: rows=%s", len(rows))
+        return [dict(row) for row in rows]
+
+    async def _handle_sql_action(self, step_number: int, decision: dict[str, Any]) -> AnalyticsStep | None:
+        query = decision.get("query") or decision.get("sql")
+        comment = str(decision.get("comment", "")).strip()
+        if not query or not isinstance(query, str):
+            logger.warning("Analytics SQL action failed: query missing")
+            return None
+        if not self._is_safe_sql(query):
+            logger.warning("Analytics SQL action failed: unsafe SQL")
+            return None
+
+        prepared_query = self._normalize_enum_literals_in_sql(self._apply_limit(query))
+        rows = await self.execute_read_only_query(prepared_query)
+        result = {
+            "returned_rows": len(rows),
+            "shown_rows": min(len(rows), MAX_ROWS_FOR_MODEL),
+            "rows": rows[:MAX_ROWS_FOR_MODEL],
+        }
+        return AnalyticsStep(
+            step_number=step_number,
+            action="sql",
+            comment=comment,
+            query=prepared_query,
+            result=result,
+        )
+
+    async def _handle_internet_action(
+        self,
+        step_number: int,
+        question: str,
+        decision: dict[str, Any],
+    ) -> AnalyticsStep:
+        query = str(decision.get("query") or "").strip()
+        comment = str(decision.get("comment", "")).strip()
+        if not query:
+            query = "Нужны внешние данные по вопросу администратора."
+
+        if not self.connection.web_search_enabled:
+            result = "Интернет-поиск отключен для этой модели."
+        else:
+            prompt = Prompts.get_prompt_for_internet_observation(
+                question=question,
+                research_query=query,
+                max_chars=MAX_TEXT_RESULT_CHARS,
+            )
+            result = await self.connection.ask_web_search(prompt) or "Интернет-поиск не вернул данных."
+            result = result[:MAX_TEXT_RESULT_CHARS]
+
+        return AnalyticsStep(
+            step_number=step_number,
+            action="internet",
+            comment=comment,
+            query=query,
+            result=result,
+        )
+
+    async def _build_final_answer(
+        self,
+        question: str,
+        request_context: str,
+        steps: list[AnalyticsStep],
     ) -> AnalyticsResult | None:
+        prompt = Prompts.get_prompt_for_analytics_final_answer(
+            question=question,
+            request_context=request_context,
+            previous_steps=self._format_steps_for_model(steps),
+        )
+        logger.info("Analytics final prompt built: chars=%s\n%s", len(prompt), _preview(prompt))
+
+        raw_response = await self.connection.ask_text(prompt)
+        if not raw_response:
+            logger.warning("Analytics failed: empty final response")
+            return None
+
+        data = self._extract_json(raw_response)
+        if not data or not data.get("answer"):
+            logger.warning("Analytics failed: invalid final JSON")
+            return None
+
+        answer = str(data["answer"]).strip()
+        logger.info("Analytics final answer:\n%s", answer)
+        return AnalyticsResult(answer=answer, question=question)
+
+    async def question(self, question: str, context: list[AdminRequestsContext]) -> AnalyticsResult | None:
         logger.info("Analytics question requested: question_len=%s contexts=%s", len(question), len(context))
         logger.info("Analytics question text:\n%s", question)
+
         schema = self._get_db_schema_description()
         request_context = self._format_request_contexts(context)
-        logger.info("Analytics schema prepared: chars=%s", len(schema))
-        logger.info("Analytics request context prepared:\n%s", _preview(request_context))
         steps: list[AnalyticsStep] = []
-        for step_number in range(1, MAX_SQL_STEPS + 1):
+
+        for step_number in range(1, MAX_ANALYTICS_STEPS + 1):
             logger.info("Analytics step started: step=%s", step_number)
-            prompt = Prompts.get_prompt_for_analytics_step(
-                question=question,
-                schema=schema,
-                request_context=request_context,
-                previous_steps=steps,
-                max_limit=MAX_SQL_LIMIT,
-            )
-            logger.info(
-                "Analytics step prompt built: step=%s chars=%s\n%s",
-                step_number,
-                len(prompt),
-                _preview(prompt),
-            )
-            raw_response = await self.connection.ask_text(prompt)
-            if not raw_response:
-                logger.warning("Analytics failed: empty response at step=%s", step_number)
+            decision = await self._ask_next_action(question, schema, request_context, steps)
+            if not decision:
                 return None
-            logger.info(
-                "Analytics step raw response: step=%s chars=%s\n%s",
-                step_number,
-                len(raw_response),
-                _preview(raw_response),
-            )
-            model_decision = self._extract_json(raw_response)
-            if not model_decision:
-                logger.warning("Analytics failed: invalid JSON at step=%s", step_number)
-                return None
-            logger.info(
-                "Analytics step JSON decision: step=%s payload=%s",
-                step_number,
-                _preview(json.dumps(model_decision, ensure_ascii=False)),
-            )
-            action = model_decision.get("action")
+
+            action = str(decision.get("action", "")).strip().lower()
             if action == "final":
-                answer = model_decision.get("answer")
+                answer = str(decision.get("answer", "")).strip()
                 if not answer:
                     logger.warning("Analytics failed: empty final answer at step=%s", step_number)
                     return None
                 logger.info("Analytics completed with model final action at step=%s", step_number)
-                logger.info("Analytics final answer:\n%s", answer)
                 return AnalyticsResult(answer=answer, question=question)
-            if action == "need_external_data":
-                research_brief = str(model_decision.get("research_brief", "")).strip()
-                if not research_brief:
-                    research_brief = "Нужны внешние данные для ответа."
-                logger.info("Analytics external data requested at step=%s", step_number)
-                return AnalyticsResult(
-                    answer="Для точного ответа нужны внешние данные из интернета.",
-                    question=question,
-                    needs_external_data=True,
-                    research_brief=research_brief,
-                )
-            if action != "query":
-                logger.warning("Analytics failed: invalid action=%s at step=%s", action, step_number)
-                return None
-            sql = model_decision.get("sql")
-            comment = model_decision.get("comment", "")
-            logger.info("Analytics step model comment: step=%s comment=%s", step_number, comment)
-            if not sql or not isinstance(sql, str):
-                logger.warning("Analytics failed: SQL missing or invalid at step=%s", step_number)
-                return None
-            logger.info("Analytics step SQL raw: step=%s\n%s", step_number, sql)
-            if not self._is_safe_sql(sql):
-                logger.warning("Analytics failed: unsafe SQL at step=%s", step_number)
-                return None
-            sql = self._apply_limit(sql)
-            sql = self._normalize_enum_literals_in_sql(sql)
-            logger.info("Analytics step SQL prepared: step=%s\n%s", step_number, sql)
-            rows = await self.execute_read_only_query(sql)
-            logger.info("Analytics step completed: step=%s rows=%s", step_number, len(rows))
-            steps.append(
-                AnalyticsStep(
-                    step_number=step_number,
-                    sql=sql,
-                    comment=comment,
-                    rows=self._rows_for_model(rows),
-                )
-            )
-        final_prompt = Prompts.get_prompt_for_analytics_final_answer(
-            question=question,
-            request_context=request_context,
-            previous_steps=steps,
-        )
-        logger.info("Analytics final prompt built: chars=%s\n%s", len(final_prompt), _preview(final_prompt))
 
-        final_raw_response = await self.connection.ask_text(final_prompt)
-        if not final_raw_response:
-            logger.warning("Analytics failed: empty final response")
-            return None
-        logger.info(
-            "Analytics final raw response: chars=%s\n%s",
-            len(final_raw_response),
-            _preview(final_raw_response),
-        )
+            if action in {"sql", "query"}:
+                step = await self._handle_sql_action(step_number, decision)
+                if step is None:
+                    return None
+                steps.append(step)
+                continue
 
-        final_data = self._extract_json(final_raw_response)
-        if not final_data:
-            logger.warning("Analytics failed: invalid final JSON")
-            return None
-        logger.info(
-            "Analytics final JSON payload=%s",
-            _preview(json.dumps(final_data, ensure_ascii=False)),
-        )
+            if action == "internet":
+                step = await self._handle_internet_action(step_number, question, decision)
+                steps.append(step)
+                continue
 
-        final_answer = final_data.get("answer")
-        if not final_answer:
-            logger.warning("Analytics failed: final answer missing")
+            logger.warning("Analytics failed: invalid action=%s at step=%s", action, step_number)
             return None
 
-        logger.info("Analytics completed with synthesized final answer")
-        logger.info("Analytics final answer:\n%s", final_answer)
-        return AnalyticsResult(answer=final_answer, question=question)
+        logger.info("Analytics max steps reached, building final answer")
+        return await self._build_final_answer(question, request_context, steps)

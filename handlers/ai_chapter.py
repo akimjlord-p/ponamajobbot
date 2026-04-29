@@ -12,6 +12,29 @@ from services.context_service import ContextService
 
 router = Router()
 
+TELEGRAM_MESSAGE_LIMIT = 4000
+
+
+async def answer_long_message(message: types.Message, text: str) -> None:
+    chunks: list[str] = []
+    current_chunk = ""
+    for paragraph in text.split("\n"):
+        candidate = paragraph if not current_chunk else f"{current_chunk}\n{paragraph}"
+        if len(candidate) <= TELEGRAM_MESSAGE_LIMIT:
+            current_chunk = candidate
+            continue
+        if current_chunk:
+            chunks.append(current_chunk)
+        while len(paragraph) > TELEGRAM_MESSAGE_LIMIT:
+            chunks.append(paragraph[:TELEGRAM_MESSAGE_LIMIT])
+            paragraph = paragraph[TELEGRAM_MESSAGE_LIMIT:]
+        current_chunk = paragraph
+    if current_chunk:
+        chunks.append(current_chunk)
+
+    for chunk in chunks:
+        await message.answer(chunk)
+
 
 class AiFSM(StatesGroup):
     command = State()
@@ -76,7 +99,7 @@ async def get_question(message: types.Message, state: FSMContext):
         await send_ai_menu(message, state)
         return
 
-    await message.answer(result.answer)
+    await answer_long_message(message, result.answer)
     await message.answer("Введите следующий вопрос или используйте /назад.")
 
 
