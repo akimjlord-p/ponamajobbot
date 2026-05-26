@@ -55,6 +55,7 @@ async def send_ai_menu(message: types.Message, state: FSMContext):
 <i>Основные команды этого раздела:</i>
 - /question - задать вопрос ИИ
 - /context - добавить общий контекст для запросов админа
+- /show_context - посмотреть текущий контекст для аналитики
 - /back - вернуться в главное меню
 """
     await state.set_state(AiFSM.command)
@@ -107,6 +108,26 @@ async def get_question(message: types.Message, state: FSMContext):
 async def add_context(message: types.Message, state: FSMContext):
     await state.set_state(ContextFSM.context)
     await message.answer("Введите контекст для запросов админа. Для выхода в главное меню используйте /back.")
+
+
+@router.message(F.text.lower() == "/show_context", AiFSM.command)
+async def show_context(message: types.Message, state: FSMContext):
+    async with SessionLocal() as session:
+        context_service = ContextService(session)
+        contexts = await context_service.get_admin_requests_contexts()
+
+    if not contexts:
+        await message.answer("Контекст для аналитики пока не задан.")
+        await send_ai_menu(message, state)
+        return
+
+    lines = ["Текущий контекст для аналитики:"]
+    for index, context in enumerate(contexts, start=1):
+        created_at = context.created_at.strftime("%d.%m.%Y %H:%M") if context.created_at else "без даты"
+        lines.append(f"\n{index}. {created_at}\n{context.text.strip()}")
+
+    await answer_long_message(message, "\n".join(lines))
+    await send_ai_menu(message, state)
 
 
 @router.message(ContextFSM.context)
