@@ -4,6 +4,7 @@ from config import BOT_TOKEN, TG_PROXY_URL
 from middlewares import UserExistsMiddleware, AdminMiddleware
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from handlers import ai_chapter, product_chapter, admin_worker_chapter, operation_chapter, rates_chapter, start, worker_chapter
+from services.mailing_service import send_weekly_reports
 from aiogram.client.session.aiohttp import AiohttpSession
 from db.session import create_db_and_tables
 
@@ -31,8 +32,16 @@ dp.include_router(start.router)
 
 async def main() -> None:
     scheduler = AsyncIOScheduler(timezone="Europe/Moscow")
-    logging.info("Add jobs: send_weekly_reports, send_daily_reports.")
-    #scheduler.add_job(send_daily_reports, trigger="cron", hour=21, minute=0, kwargs={"bot": bot})
+    scheduler.add_job(
+        send_weekly_reports,
+        trigger="cron",
+        day_of_week="sun",
+        hour=10,
+        minute=0,
+        timezone="Europe/Moscow",
+        kwargs={"bot": bot},
+    )
+    logging.info("Scheduled job added: send_weekly_reports (sun 10:00 MSK -> MAIN_ID).")
     scheduler.start()
     await create_db_and_tables()
     await dp.start_polling(bot)

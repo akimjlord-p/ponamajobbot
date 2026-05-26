@@ -42,6 +42,23 @@ class ReportRepository:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
+    async def get_weekly_reports(self) -> list[WorkReport]:
+        """Отчёты за последние 7 дней, с подгрузкой worker для форматирования."""
+        from datetime import timedelta
+        date_from = date.today() - timedelta(days=7)
+        stmt = (
+            select(WorkReport)
+            .options(
+                selectinload(WorkReport.session),
+                selectinload(WorkReport.performed_operations),
+                selectinload(WorkReport.worker),
+            )
+            .where(WorkReport.session.has(WorkSession.work_date >= date_from))
+            .order_by(WorkReport.created_at.asc())
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
     async def get_reports_for_admin_review(self) -> list[WorkReport]:
         stmt = self._base_query().where(
             WorkReport.status.in_([
