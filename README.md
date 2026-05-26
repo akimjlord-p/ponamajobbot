@@ -1,62 +1,116 @@
 # ponamajobbot
 
-Telegram bot for tracking work sessions, collecting reports, and building internal analytics.
+Telegram-бот для учета рабочих сессий, отчетов и внутренней аналитики.
 
-The project is being rebuilt around an explicit service and repository architecture with SQLAlchemy models in `db/`.
+## Технологии
 
-## Architecture
+- Python 3.11+
+- aiogram 3
+- SQLAlchemy (async) + aiosqlite
+- APScheduler
+- LangChain OpenAI (`langchain-openai`)
+- python-dotenv
+
+## Запуск
+
+1. Создайте и активируйте виртуальное окружение.
+2. Установите зависимости:
+
+```bash
+pip install aiogram sqlalchemy aiosqlite apscheduler python-dotenv httpx langchain-openai pytest
+```
+
+3. Заполните `.env`:
+
+```env
+BOT_TOKEN=...
+OPENAPI_API_KEY=...
+PROXY_URL=
+TG_PROXY_URL=
+RUN_LLM_TEST=False
+```
+
+4. Запустите бота:
+
+```bash
+python main.py
+```
+
+## Структура проекта
 
 ```text
 main.py
 bot.py
 config.py
 middlewares.py
-auto_mailings.py
-ai_connection.py
+keyboards.py
 
 handlers/
+  ai_chapter.py
+  admin_worker_chapter.py
+  operation_chapter.py
+  product_chapter.py
+  rates_chapter.py
   start.py
-  admin.py
-  report.py
-  worker.py
+  worker_chapter.py
 
 services/
+  ai_service/
+    analytics.py
+    container.py
+    llm_connection.py
+    parsing.py
+    prompts.py
+    service.py
+    synonyms.py
+  comment_service.py
+  context_service.py
+  operation_service.py
+  operation_type_service.py
+  product_service.py
+  rate_service.py
+  report_service.py
+  session_service.py
   user_service.py
   worker_service.py
-  session_service.py
-  report_service.py
-  operation_service.py
-  rate_service.py
-  comment_service.py
-  analytic_service.py
 
 repositories/
-  user_repository.py
-  session_repository.py
-  report_repository.py
+  ai_repository.py
+  comment_repository.py
   operation_repository.py
   rate_repository.py
-  comment_repository.py
-  ai_repository.py
+  report_repository.py
+  session_repository.py
+  user_repository.py
 
 db/
   base.py
-  enums.py
   models.py
   session.py
+
+utils/
+  logger.py
+  proxy.py
 ```
 
-## Layers
+## Слои
 
-- `handlers` handle Telegram updates and user flows
-- `services` contain business logic
-- `repositories` work with the database
-- `db` contains SQLAlchemy models, enums, and session setup
+- `handlers` — Telegram-роутеры и пользовательские сценарии.
+- `services` — бизнес-логика.
+- `repositories` — доступ к данным.
+- `db` — модели и настройка async-сессии SQLAlchemy.
 
-## Goals
+## Команды бота
 
-- write AI service
-- write tests
-- write handlers
-- add Docker
-- add GitHub actions
+### `/ai`
+
+- `/question` — задать вопрос ИИ-аналитике.
+- `/context` — добавить запись в накопительный контекст для аналитики.
+- `/show_context` — посмотреть текущий накопительный контекст для аналитики.
+- `/back` — вернуться в главное меню.
+
+## Тесты
+
+```bash
+pytest
+```
