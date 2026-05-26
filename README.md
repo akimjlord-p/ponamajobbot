@@ -1,8 +1,8 @@
 # ponamajobbot
 
-Telegram-бот для учета рабочих сессий, отчетов и внутренней аналитики.
+Telegram bot for tracking worker shifts, collecting free-text reports, and running AI-powered internal analytics.
 
-## Технологии
+## Tech stack
 
 - Python 3.11+
 - aiogram 3
@@ -11,32 +11,33 @@ Telegram-бот для учета рабочих сессий, отчетов и
 - LangChain OpenAI (`langchain-openai`)
 - python-dotenv
 
-## Запуск
+## Getting started
 
-1. Создайте и активируйте виртуальное окружение.
-2. Установите зависимости:
+1. Create and activate a virtual environment.
+2. Install dependencies:
 
 ```bash
 pip install aiogram sqlalchemy aiosqlite apscheduler python-dotenv httpx langchain-openai pytest
 ```
 
-3. Заполните `.env`:
+3. Fill in `.env`:
 
 ```env
 BOT_TOKEN=...
-OPENAPI_API_KEY=...
+OPENAI_API_KEY=...
+MAIN_ID=<your telegram id>
 PROXY_URL=
 TG_PROXY_URL=
 RUN_LLM_TEST=False
 ```
 
-4. Запустите бота:
+4. Run the bot:
 
 ```bash
 python main.py
 ```
 
-## Структура проекта
+## Project structure
 
 ```text
 main.py
@@ -63,6 +64,7 @@ services/
     prompts.py
     service.py
     synonyms.py
+  mailing_service.py
   comment_service.py
   context_service.py
   operation_service.py
@@ -93,23 +95,45 @@ utils/
   proxy.py
 ```
 
-## Слои
+## Layers
 
-- `handlers` — Telegram-роутеры и пользовательские сценарии.
-- `services` — бизнес-логика.
-- `repositories` — доступ к данным.
-- `db` — модели и настройка async-сессии SQLAlchemy.
+- `handlers` — Telegram routers and user interaction flows.
+- `services` — business logic.
+- `repositories` — database access.
+- `db` — SQLAlchemy models and async session setup.
 
-## Команды бота
+## Bot commands
 
-### `/ai`
+### Worker
 
-- `/question` — задать вопрос ИИ-аналитике.
-- `/context` — добавить запись в накопительный контекст для аналитики.
-- `/show_context` — посмотреть текущий накопительный контекст для аналитики.
-- `/back` — вернуться в главное меню.
+- `/checkin` — open a work shift.
+- `/checkout` — close the shift and submit a free-text report (parsed by AI).
+- `/comment` — leave an idea, complaint, or general comment.
 
-## Тесты
+### Admin
+
+- `/workers` — manage workers (list / add / delete).
+- `/products` — manage product catalogue.
+- `/operations` — manage operation types.
+- `/rates` — manage operation rates.
+- `/ai` — AI analytics section.
+
+Admins can also use all worker commands to track their own shifts.
+
+### AI section (`/ai`)
+
+- `/question` — ask the AI analyst a question about the data.
+- `/context` — add a note to the persistent analytics context.
+- `/show_context` — view the current analytics context.
+- `/back` — return to the main menu.
+
+## Scheduled jobs
+
+| Job | Schedule | Description |
+|-----|----------|-------------|
+| `send_weekly_reports` | Every Sunday 10:00 MSK | Sends a weekly report digest to `MAIN_ID`: unresolved reports first, then all others. |
+
+## Tests
 
 ```bash
 pytest
