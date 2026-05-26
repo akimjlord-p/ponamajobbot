@@ -17,12 +17,17 @@ async def send_start_menu(message: types.Message, state: FSMContext, is_admin: b
     if is_admin:
         text = f"""
 Привет, <b>администратор {firstname}</b>.
-<i>Основные команды:</i>
+<i>Управление:</i>
 - /workers - раздел с сотрудниками
 - /ai - раздел с ИИ-аналитикой
 - /products - раздел с текущими товарами
 - /operations - раздел с текущими операциями
 - /rates - раздел с текущими тарифами
+
+<i>Работа (как сотрудник):</i>
+- /checkin - открыть смену
+- /checkout - закрыть смену и отправить отчёт
+- /comment - оставить комментарий
         """
     else:
         text = f"""

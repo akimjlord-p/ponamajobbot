@@ -58,9 +58,6 @@ async def back_to_start(message: types.Message, state: FSMContext, is_admin: boo
 
 @router.message(F.text.lower() == "/checkin")
 async def checkin(message: types.Message, state: FSMContext, is_admin: bool):
-    if is_admin:
-        return
-
     await state.clear()
     telegram_id = message.from_user.id
     async with SessionLocal() as session:
@@ -76,9 +73,6 @@ async def checkin(message: types.Message, state: FSMContext, is_admin: bool):
 
 @router.message(F.text.lower() == "/checkout")
 async def checkout_start(message: types.Message, state: FSMContext, is_admin: bool):
-    if is_admin:
-        return
-
     telegram_id = message.from_user.id
     async with SessionLocal() as session:
         session_service = SessionService(session)
@@ -95,9 +89,6 @@ async def checkout_start(message: types.Message, state: FSMContext, is_admin: bo
 
 @router.message(CheckoutFSM.report_text)
 async def checkout_finish(message: types.Message, state: FSMContext, is_admin: bool):
-    if is_admin:
-        return
-
     report_text = (message.text or "").strip()
     if not report_text:
         await message.answer("Отчет не должен быть пустым.")
@@ -130,9 +121,6 @@ async def checkout_finish(message: types.Message, state: FSMContext, is_admin: b
 
 @router.message(F.text.lower() == "/comment")
 async def comment_start(message: types.Message, state: FSMContext, is_admin: bool):
-    if is_admin:
-        return
-
     await state.set_state(CommentFSM.tag)
     await message.answer("Выберите тип комментария.", reply_markup=comment_tag_kb)
 
@@ -152,9 +140,6 @@ async def comment_get_tag(message: types.Message, state: FSMContext):
 
 @router.message(CommentFSM.text)
 async def comment_save(message: types.Message, state: FSMContext, is_admin: bool):
-    if is_admin:
-        return
-
     comment_text = (message.text or "").strip()
     if not comment_text:
         await message.answer("Комментарий не должен быть пустым.")

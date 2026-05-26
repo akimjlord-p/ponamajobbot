@@ -6,12 +6,17 @@ main_admin_kb = ReplyKeyboardMarkup(
         [
             KeyboardButton(text="/workers"),
             KeyboardButton(text="/ai"),
-            KeyboardButton(text="/products")
+            KeyboardButton(text="/products"),
         ],
         [
             KeyboardButton(text="/operations"),
             KeyboardButton(text="/rates"),
-        ]
+        ],
+        [
+            KeyboardButton(text="/checkin"),
+            KeyboardButton(text="/checkout"),
+            KeyboardButton(text="/comment"),
+        ],
     ],
     resize_keyboard=True,
 )
@@ -68,6 +73,9 @@ ai_chapter_kb = ReplyKeyboardMarkup(
         [
             KeyboardButton(text="/question"),
             KeyboardButton(text="/context"),
+            KeyboardButton(text="/show_context"),
+        ],
+        [
             KeyboardButton(text="/back"),
         ]
     ],
