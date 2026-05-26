@@ -33,6 +33,7 @@ class WorkerService:
         return [user.username for user in users]
 
     async def get_or_create_worker(self, username: str) -> None | User:
+        username = username.lstrip("@")
         logger.info("Get or create worker requested: username=%s", username)
         user = await self.user_repo.get_by_username(username)
         if user and user.role == UserRole.WORKER:
@@ -52,6 +53,7 @@ class WorkerService:
 
 
     async def authorize_worker(self, username: str, telegram_id: int) -> None | User:
+        username = username.lstrip("@")
         logger.info("Authorize worker requested: username=%s telegram_id=%s", username, telegram_id)
         user = await self.user_repo.get_by_username(username)
         if not user or user.role != UserRole.WORKER:
@@ -63,6 +65,7 @@ class WorkerService:
         return user
 
     async def delete_worker(self, username: str) -> None | User:
+        username = username.lstrip("@")
         logger.info("Delete worker requested: username=%s", username)
         user = await self.user_repo.get_by_username(username)
         if not user or user.role != UserRole.WORKER:
